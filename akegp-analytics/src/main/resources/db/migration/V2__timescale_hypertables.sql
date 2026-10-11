@@ -1,0 +1,1 @@
+-- TimescaleDB-specific conversion is intentionally deferred to the first implementation iteration.

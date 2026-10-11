@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: akegp
+  datasource:
+    url: ${AKEGP_DB_URL:jdbc:postgresql://localhost:5432/akegp}
+    username: ${AKEGP_DB_USER:akegp}
+    password: ${AKEGP_DB_PASSWORD:akegp}
+  flyway:
+    enabled: false
+akegp:
+  schemas:
+    rules: rules_
+    enforcement: enf_
+    analytics: analytics_
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/akegp}

@@ -1,0 +1,3 @@
+import { Link, Route, Routes } from "react-router-dom";
+const Placeholder = ({ title }: { title: string }) => <main><h1>{title}</h1><p>Analytics placeholder.</p></main>;
+export function AnalyticsPage() { return <><nav><Link to="dashboard">Dashboard</Link> <Link to="lifecycle">Lifecycle</Link> <Link to="hotspots">Hotspots</Link> <Link to="health-score">Health Score</Link></nav><Routes><Route path="dashboard" element={<Placeholder title="Dashboard"/>}/><Route path="lifecycle" element={<Placeholder title="Lifecycle"/>}/><Route path="hotspots" element={<Placeholder title="Hotspots"/>}/><Route path="health-score" element={<Placeholder title="Health Score"/>}/><Route path="*" element={<Placeholder title="Analytics"/>}/></Routes></>; }

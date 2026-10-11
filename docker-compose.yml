@@ -1,0 +1,20 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment: { POSTGRES_DB: akegp, POSTGRES_USER: akegp, POSTGRES_PASSWORD: akegp }
+    ports: ["5432:5432"]
+  neo4j:
+    image: neo4j:5
+    environment: { NEO4J_AUTH: neo4j/akegp }
+    ports: ["7474:7474", "7687:7687"]
+  mongodb:
+    image: mongo:7
+    ports: ["27017:27017"]
+  app:
+    build: { context: ., dockerfile: akegp-app/Dockerfile }
+    depends_on: [timescaledb, neo4j, mongodb]
+    ports: ["8080:8080"]
+  web:
+    build: { context: akegp-web }
+    depends_on: [app]
+    ports: ["5173:5173"]

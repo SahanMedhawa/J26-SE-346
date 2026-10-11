@@ -1,0 +1,9 @@
+openapi: 3.0.3
+info:
+  title: AKEGP API
+  version: 0.1.0
+paths:
+  /api/rules/health: { get: { responses: { "200": { description: OK } } } }
+  /api/conformance/health: { get: { responses: { "200": { description: OK } } } }
+  /api/enforcement/health: { get: { responses: { "200": { description: OK } } } }
+  /api/analytics/health: { get: { responses: { "200": { description: OK } } } }
