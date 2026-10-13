@@ -16,3 +16,8 @@ akegp:
     uri: ${NEO4J_URI:bolt://localhost:7687}
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/akegp}
+  datasources:
+    rules:
+      url: ${AKEGP_RULES_DB_URL}
+      username: ${AKEGP_RULES_DB_USER}
+      password: ${AKEGP_RULES_DB_PASSWORD}
