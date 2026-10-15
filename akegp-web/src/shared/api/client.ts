@@ -61,7 +61,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const projectsApi = {
-  list: () => request<Project[]>("/api/rules/projects"),
+  list: async () => (await request<Project[] | null>("/api/rules/projects")) ?? [],
   get: (id: string) => request<Project>(`/api/rules/projects/${id}`),
   create: (input: ProjectInput) => request<Project>("/api/rules/projects", {
     method: "POST",

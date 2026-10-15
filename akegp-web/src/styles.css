@@ -223,3 +223,4 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .register-project-form { grid-template-columns: 1fr; }
   .register-project-form label:nth-child(3), .register-project-form label:nth-child(4), .register-project-form .modal-actions { grid-column: auto; }
 }
+.app-settings-link{align-items:center;border:1px solid #30363d;border-radius:50%;color:#c9d1d9;display:flex;font-size:16px;height:34px;justify-content:center;width:34px}.app-settings-link:hover{border-color:#3fb950;color:#3fb950}
