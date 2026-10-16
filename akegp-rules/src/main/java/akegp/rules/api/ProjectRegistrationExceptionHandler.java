@@ -6,6 +6,8 @@ import akegp.rules.service.DuplicateADRException;
 import akegp.rules.service.InactiveProjectException;
 import akegp.rules.service.ProjectNotFoundException;
 import akegp.rules.service.StaleADRException;
+import akegp.rules.service.DuplicateRuleException;
+import akegp.rules.service.RuleNotFoundException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -57,6 +59,16 @@ public class ProjectRegistrationExceptionHandler {
   @ExceptionHandler(InactiveProjectException.class)
   ResponseEntity<ApiError> handleInactiveProject(InactiveProjectException exception) {
     return error(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
+  }
+
+  @ExceptionHandler(DuplicateRuleException.class)
+  ResponseEntity<ApiError> handleDuplicateRule(DuplicateRuleException exception) {
+    return error(HttpStatus.CONFLICT, exception.getMessage(), Map.of());
+  }
+
+  @ExceptionHandler(RuleNotFoundException.class)
+  ResponseEntity<ApiError> handleRuleNotFound(RuleNotFoundException exception) {
+    return error(HttpStatus.NOT_FOUND, exception.getMessage(), Map.of());
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)

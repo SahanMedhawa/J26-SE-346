@@ -23,6 +23,58 @@ export type ProjectInput = {
   architectureStyles: ArchitectureStyle[];
 };
 
+export type ADRStatus = "PROPOSED" | "ACCEPTED" | "DEPRECATED" | "SUPERSEDED";
+
+export type ADR = {
+  id: string;
+  adrId: string;
+  projectId: string;
+  title: string;
+  status: ADRStatus;
+  context: string;
+  decision: string;
+  consequences: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  linkedRuleCount: number | null;
+  linkedRuleIds: string[];
+};
+
+export type ADRInput = {
+  adrId: string;
+  title: string;
+  status: ADRStatus;
+  context: string;
+  decision: string;
+  consequences: string;
+};
+
+export type ArchitectureElementType = "SERVICE" | "DATABASE" | "CONTROLLER" | "SERVICE_LAYER" | "REPOSITORY" | "MESSAGE_BROKER" | "API_GATEWAY" | "EXTERNAL_SYSTEM";
+export type RelationshipType = "CALLS" | "DEPENDS_ON" | "DIRECT_DATABASE_ACCESS" | "DATA_ACCESS" | "PUBLISHES_TO" | "CONSUMES_FROM" | "USES_API";
+export type RuleDecision = "ALLOWED" | "FORBIDDEN" | "REQUIRED";
+export type RuleSeverity = "HIGH" | "MEDIUM" | "LOW";
+
+export type ArchitectureRule = {
+  id: string;
+  ruleId: string;
+  projectId: string;
+  adrId: string;
+  adrDisplayId: string;
+  sourceElement: string;
+  sourceElementType: ArchitectureElementType;
+  relationshipType: RelationshipType;
+  targetElement: string;
+  targetElementType: ArchitectureElementType;
+  decision: RuleDecision;
+  description: string;
+  severity: RuleSeverity;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ArchitectureRuleInput = Omit<ArchitectureRule, "id" | "projectId" | "adrDisplayId" | "createdAt" | "updatedAt">;
+
 export type ApiErrorResponse = {
   timestamp?: string;
   status: number;
@@ -74,5 +126,43 @@ export const projectsApi = {
   updateStatus: (id: string, status: ProjectStatus) => request<Project>(`/api/rules/projects/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  }),
+};
+
+export const adrsApi = {
+  list: async (projectId: string, params?: { status?: ADRStatus | "all"; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== "all") query.set("status", params.status);
+    if (params?.search?.trim()) query.set("search", params.search.trim());
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return (await request<ADR[] | null>(`/api/rules/projects/${projectId}/adrs${suffix}`)) ?? [];
+  },
+  get: (projectId: string, adrId: string) => request<ADR>(`/api/rules/projects/${projectId}/adrs/${adrId}`),
+  create: (projectId: string, input: ADRInput) => request<ADR>(`/api/rules/projects/${projectId}/adrs`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
+  update: (projectId: string, adrId: string, input: ADRInput & { version: number }) => request<ADR>(`/api/rules/projects/${projectId}/adrs/${adrId}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  }),
+  remove: (projectId: string, adrId: string) => request<void>(`/api/rules/projects/${projectId}/adrs/${adrId}`, {
+    method: "DELETE",
+  }),
+};
+
+export const rulesApi = {
+  list: async (projectId: string) => (await request<ArchitectureRule[] | null>(`/api/rules/projects/${projectId}/rules`)) ?? [],
+  get: (projectId: string, ruleUuid: string) => request<ArchitectureRule>(`/api/rules/projects/${projectId}/rules/${ruleUuid}`),
+  create: (projectId: string, input: ArchitectureRuleInput) => request<ArchitectureRule>(`/api/rules/projects/${projectId}/rules`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
+  update: (projectId: string, ruleUuid: string, input: ArchitectureRuleInput) => request<ArchitectureRule>(`/api/rules/projects/${projectId}/rules/${ruleUuid}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  }),
+  remove: (projectId: string, ruleUuid: string) => request<void>(`/api/rules/projects/${projectId}/rules/${ruleUuid}`, {
+    method: "DELETE",
   }),
 };

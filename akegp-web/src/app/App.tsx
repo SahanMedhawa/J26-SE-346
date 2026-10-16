@@ -5,7 +5,8 @@ import { RepositoryPage } from "../modules/conformance/RepositoryPage";
 import { SettingsPage } from "../modules/conformance/SettingsPage";
 import { EnforcementPage } from "../modules/enforcement/EnforcementPage";
 import { HomePage } from "../modules/conformance/HomePage";
-import { ComingSoonPage, ProjectsPage, RulesPage } from "../modules/rules/RulesPage";
+import { ADRManagementPage, ComingSoonPage, ProjectsPage, RulesPage } from "../modules/rules/RulesPage";
+import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
 import "../styles.css";
 
 export function App() {
@@ -24,8 +25,8 @@ export function App() {
 			<Route path="/rules" element={<RulesPage/>}>
 				<Route index element={<Navigate replace to="architecture-rules" />} />
 				<Route path="projects" element={<ProjectsPage/>}/>
-				<Route path="adrs" element={<ComingSoonPage title="ADR Management" description="Capture and govern architectural decisions alongside the systems they shape." />} />
-				<Route path="architecture-rules" element={<ComingSoonPage title="Architecture Rule Engineering" description="Author executable rules that make architectural intent precise, reviewable, and enforceable." />} />
+				<Route path="adrs" element={<ADRManagementPage />} />
+				<Route path="architecture-rules" element={<ArchitectureRulesPage />} />
 				<Route path="validation" element={<ComingSoonPage title="Formal Rule & Mapping Validation" description="Validate rule definitions and mappings before they become part of your conformance framework." />} />
 				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
 			</Route>
