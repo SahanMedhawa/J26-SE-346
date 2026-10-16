@@ -1,6 +1,7 @@
-import { createContext, FormEvent, KeyboardEvent, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { ADR, ADRInput, ADRStatus, ApiClientError, ArchitectureStyle, Project, ProjectInput, ProjectStatus, adrsApi, projectsApi } from "../../shared/api/client";
+import { SelectedProjectContext, useSelectedProject } from "./rulesWorkspace";
 
 type RuleModule = {
   label: string;
@@ -14,15 +15,6 @@ const ruleModules: RuleModule[] = [
   { label: "Architecture Rule Engineering", path: "/rules/architecture-rules", icon: "rules" },
   { label: "Formal Rule & Mapping Validation", path: "/rules/validation", icon: "validation" },
 ];
-
-const SelectedProjectContext = createContext<{
-  selectedProject: Project | null;
-  setSelectedProject: (project: Project) => void;
-}>({ selectedProject: null, setSelectedProject: () => undefined });
-
-function useSelectedProject() {
-  return useContext(SelectedProjectContext);
-}
 
 function ModuleIcon({ type }: { type: RuleModule["icon"] }) {
   if (type === "projects") {
