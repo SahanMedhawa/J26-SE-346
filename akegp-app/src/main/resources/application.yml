@@ -10,6 +10,12 @@ spring:
   flyway:
     enabled: false
 akegp:
+  enforcement:
+    persistence: jdbc
+    conformance: mock
+    api-key: dev-key
+    projects:
+      "[demo/shop-api]": project-A
   schemas:
     rules: rules_
     enforcement: enf_
