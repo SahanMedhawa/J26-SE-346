@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:classpath:application-local.yml
   application:
     name: akegp
   datasource:
@@ -14,6 +16,8 @@ akegp:
     analytics: analytics_
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}
+    username: ${NEO4J_USER:neo4j}
+    password: ${NEO4J_PASSWORD:akegp-dev}
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/akegp}
   datasources:

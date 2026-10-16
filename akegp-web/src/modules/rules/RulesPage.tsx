@@ -1,5 +1,5 @@
 import { createContext, FormEvent, ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { ApiClientError, ArchitectureStyle, Project, ProjectInput, ProjectStatus, projectsApi } from "../../shared/api/client";
 
 type RuleModule = {
@@ -49,7 +49,7 @@ function WorkspaceHeader() {
   );
 }
 
-function ProjectsPage() {
+export function ProjectsPage() {
   const { selectedProject, setSelectedProject } = useSelectedProject();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
@@ -295,7 +295,7 @@ function ProjectForm({ project, onCancel, onSubmit, submitLabel, busy }: { proje
   );
 }
 
-function ComingSoonPage({ title, description }: { title: string; description: string }) {
+export function ComingSoonPage({ title, description }: { title: string; description: string }) {
   return (
     <section className="rules-content">
       <div className="content-heading">
@@ -348,14 +348,7 @@ export function RulesPage() {
       </aside>
       <div className="rules-main">
         <WorkspaceHeader />
-        <Routes>
-          <Route index element={<Navigate replace to="projects" />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="adrs" element={<ComingSoonPage title="ADR Management" description="Capture and govern architectural decisions alongside the systems they shape." />} />
-          <Route path="architecture-rules" element={<ComingSoonPage title="Architecture Rule Engineering" description="Author executable rules that make architectural intent precise, reviewable, and enforceable." />} />
-          <Route path="validation" element={<ComingSoonPage title="Formal Rule & Mapping Validation" description="Validate rule definitions and mappings before they become part of your conformance framework." />} />
-          <Route path="*" element={<ProjectsPage />} />
-        </Routes>
+        <Outlet />
       </div>
     </div>
     </SelectedProjectContext.Provider>

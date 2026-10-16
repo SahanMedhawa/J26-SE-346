@@ -1,0 +1,18 @@
+html,
+body,
+#root {
+	width: 100%;
+	min-height: 100%;
+	margin: 0;
+}
+
+body {
+	min-width: 320px;
+	background: #0e1315;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}

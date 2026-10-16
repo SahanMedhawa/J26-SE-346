@@ -5,7 +5,7 @@ services:
     ports: ["5432:5432"]
   neo4j:
     image: neo4j:5
-    environment: { NEO4J_AUTH: neo4j/akegp }
+    environment: { NEO4J_AUTH: neo4j/akegp-dev }
     ports: ["7474:7474", "7687:7687"]
   mongodb:
     image: mongo:7
@@ -13,6 +13,10 @@ services:
   app:
     build: { context: ., dockerfile: akegp-app/Dockerfile }
     depends_on: [timescaledb, neo4j, mongodb]
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: akegp-dev
     ports: ["8080:8080"]
   web:
     build: { context: akegp-web }
