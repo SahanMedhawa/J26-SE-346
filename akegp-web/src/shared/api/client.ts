@@ -75,6 +75,22 @@ export type ArchitectureRule = {
 
 export type ArchitectureRuleInput = Omit<ArchitectureRule, "id" | "projectId" | "adrDisplayId" | "createdAt" | "updatedAt">;
 
+export type ValidationArchitectureStyle = Exclude<ArchitectureStyle, "MICROSERVICES_AND_LAYERED">;
+export type ValidateStructureRequest = { architectureStyle?: ValidationArchitectureStyle };
+export type StructuralValidationResponse = {
+  ruleId: string;
+  ruleUuid: string;
+  projectId: string;
+  architectureStyle: ValidationArchitectureStyle;
+  sourceElementType: ArchitectureElementType;
+  relationshipType: RelationshipType;
+  targetElementType: ArchitectureElementType;
+  decision: RuleDecision;
+  validationStatus: "SUPPORTED" | "UNSUPPORTED";
+  matchedSignatureId: string | null;
+  message: string;
+};
+
 export type ApiErrorResponse = {
   timestamp?: string;
   status: number;
@@ -152,6 +168,10 @@ export const adrsApi = {
 };
 
 export const rulesApi = {
+  validateStructure: (projectId: string, ruleUuid: string, input: ValidateStructureRequest) => request<StructuralValidationResponse>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/validate-structure`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
   list: async (projectId: string) => (await request<ArchitectureRule[] | null>(`/api/rules/projects/${projectId}/rules`)) ?? [],
   get: (projectId: string, ruleUuid: string) => request<ArchitectureRule>(`/api/rules/projects/${projectId}/rules/${ruleUuid}`),
   create: (projectId: string, input: ArchitectureRuleInput) => request<ArchitectureRule>(`/api/rules/projects/${projectId}/rules`, {

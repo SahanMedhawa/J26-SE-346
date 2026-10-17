@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ADR,
   ArchitectureElementType,
@@ -23,7 +24,13 @@ const severities: RuleSeverity[] = ["HIGH", "MEDIUM", "LOW"];
 type Modal = "create" | "edit" | "details" | null;
 
 export function ArchitectureRulesPage() {
-  const { setSelectedProject } = useSelectedProject();
+  const { selectedProject: workspaceProject, setSelectedProject } = useSelectedProject();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const initialProjectId = useRef(params.get("projectId") ?? workspaceProject?.id);
+  const editRuleUuid = params.get("editRule");
+  const returnToValidation = params.get("returnTo") === "validation";
+  const openedEdit = useRef<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [adrs, setAdrs] = useState<ADR[]>([]);
@@ -39,16 +46,21 @@ export function ArchitectureRulesPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let active = true;
     void projectsApi.list().then((loaded) => {
+      if (!active) return;
       setProjects(loaded);
       if (loaded.length) {
-        setProjectId(loaded[0].id);
-        setSelectedProject(loaded[0]);
+        const project = loaded.find((item) => item.id === initialProjectId.current) ?? loaded[0];
+        setProjectId(project.id);
+        setSelectedProject(project);
       }
     }).catch((error) => setNotice({ text: getRuleError(error), success: false }));
+    return () => { active = false; };
   }, [setSelectedProject]);
 
   useEffect(() => {
+    let active = true;
     if (!projectId) {
       setRules([]);
       setAdrs([]);
@@ -59,14 +71,33 @@ export function ArchitectureRulesPage() {
     if (project) setSelectedProject(project);
     setLoadState("loading");
     void Promise.all([rulesApi.list(projectId), adrsApi.list(projectId)]).then(([loadedRules, loadedAdrs]) => {
+      if (!active) return;
       setRules(loadedRules);
       setAdrs(loadedAdrs);
       setLoadState("ready");
     }).catch((error) => {
+      if (!active) return;
       setLoadState("error");
       setNotice({ text: getRuleError(error), success: false });
     });
+    return () => { active = false; };
   }, [projectId, projects, setSelectedProject]);
+
+  useEffect(() => {
+    if (!editRuleUuid || !projectId || projectId !== params.get("projectId") || loadState !== "ready" || openedEdit.current === editRuleUuid) return;
+    let active = true;
+    void rulesApi.get(projectId, editRuleUuid).then((rule) => {
+      if (!active) return;
+      openedEdit.current = editRuleUuid;
+      setSelectedRule(rule);
+      setModal("edit");
+    }).catch((error) => {
+      if (!active) return;
+      openedEdit.current = editRuleUuid;
+      setNotice({ text: getRuleError(error), success: false });
+    });
+    return () => { active = false; };
+  }, [editRuleUuid, loadState, params, projectId]);
 
   const selectedProject = projects.find((project) => project.id === projectId);
   const visibleRules = useMemo(() => {
@@ -136,6 +167,9 @@ export function ArchitectureRulesPage() {
       }
       setModal(null);
       await reloadRules();
+      if (editing && selectedRule && returnToValidation) {
+        navigate(`/rules/validation?${new URLSearchParams({ projectId: selectedRule.projectId, rule: selectedRule.id })}`);
+      }
     } catch (error) {
       setNotice({ text: getRuleError(error), success: false });
     } finally {
@@ -208,7 +242,7 @@ function RuleDetails({ rule, project, adrs, onClose, onEdit }: { rule: Architect
   return <div className="modal-backdrop"><div className="project-modal rule-details-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2>Rule Details · {rule.ruleId}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close details">x</button></div><div className="adr-details-body"><div className="rule-detail-heading"><h3>{rule.ruleId}</h3><div><span className={`rule-badge decision-${rule.decision.toLowerCase()}`}>{titleCase(rule.decision)}</span><span className={`rule-badge severity-${rule.severity.toLowerCase()}`}>{titleCase(rule.severity)}</span></div></div><dl><dt>Architecture Project</dt><dd>{project?.name ?? rule.projectId}</dd><dt>Linked ADR</dt><dd>{rule.adrDisplayId} {adr ? `— ${adr.title}` : ""}</dd><dt>Source Element</dt><dd>{rule.sourceElement} · {titleCase(rule.sourceElementType)}</dd><dt>Relationship Type</dt><dd>{titleCase(rule.relationshipType)}</dd><dt>Target Element</dt><dd>{rule.targetElement} · {titleCase(rule.targetElementType)}</dd><dt>Description</dt><dd>{rule.description}</dd><dt>Created</dt><dd>{formatDateTime(rule.createdAt)}</dd><dt>Updated</dt><dd>{formatDateTime(rule.updatedAt)}</dd></dl></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={onClose}>Cancel</button><button className="primary-button" type="button" onClick={onEdit}>Edit Rule</button></div></div></div>;
 }
 
-function DarkSelect({ ariaLabel, value, options, onChange }: { ariaLabel: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
+export function DarkSelect({ ariaLabel, value, options, onChange }: { ariaLabel: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(Math.max(0, options.findIndex((option) => option.value === value)));
   const ref = useRef<HTMLDivElement>(null);
