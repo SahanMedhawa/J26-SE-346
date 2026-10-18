@@ -140,7 +140,6 @@ export function ArchitectureRulesPage() {
     }
     const form = new FormData(event.currentTarget);
     const input: ArchitectureRuleInput = {
-      ruleId: String(form.get("ruleId") ?? "").trim(),
       adrId: String(form.get("adrId") ?? ""),
       sourceElement: String(form.get("sourceElement") ?? "").trim(),
       sourceElementType: String(form.get("sourceElementType") ?? "") as ArchitectureElementType,
@@ -162,8 +161,8 @@ export function ArchitectureRulesPage() {
         await rulesApi.update(selectedRule.projectId, selectedRule.id, input);
         setNotice({ text: "Architecture rule updated successfully.", success: true });
       } else {
-        await rulesApi.create(projectId, input);
-        setNotice({ text: "Architecture rule created successfully.", success: true });
+        const created = await rulesApi.create(projectId, input);
+        setNotice({ text: `Architecture Rule ${created.ruleId} created successfully.`, success: true });
       }
       setModal(null);
       await reloadRules();
@@ -210,7 +209,7 @@ export function ArchitectureRulesPage() {
       </tr>)}
     </tbody></table></div>
     {modal === "create" && <RuleModal title="Create Architecture Rule" onClose={() => setModal(null)}><RuleForm projects={adrs} rule={undefined} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, false)} /></RuleModal>}
-    {modal === "edit" && selectedRule && <RuleModal title="Edit Architecture Rule" onClose={() => setModal(null)}><RuleForm projects={adrs} rule={selectedRule} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, true)} /></RuleModal>}
+    {modal === "edit" && selectedRule && <RuleModal title="Edit Architecture Rule" identifier={selectedRule.ruleId} onClose={() => setModal(null)}><RuleForm projects={adrs} rule={selectedRule} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, true)} /></RuleModal>}
     {modal === "details" && selectedRule && <RuleDetails rule={selectedRule} project={selectedProject} adrs={adrs} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
     {confirmDelete && <div className="modal-backdrop"><div className="project-modal confirmation-modal" role="alertdialog" aria-modal="true"><div className="modal-header"><h2>Delete architecture rule?</h2><button className="modal-close" type="button" onClick={() => setConfirmDelete(null)} aria-label="Close confirmation">x</button></div><div className="confirmation-content"><p>Are you sure you want to delete architecture rule <strong>{confirmDelete.ruleId}</strong>? This action cannot be undone.</p></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" type="button" disabled={busy} onClick={() => void deleteRule()}>{busy ? "Deleting..." : "Delete Rule"}</button></div></div></div>}
   </section>;
@@ -219,8 +218,7 @@ export function ArchitectureRulesPage() {
 function RuleForm({ rule, projects, busy, onCancel, onSubmit }: { rule?: ArchitectureRule; projects: ADR[]; busy: boolean; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const [adrId, setAdrId] = useState(rule?.adrId ?? "");
   return <form className="adr-form rule-form" onSubmit={onSubmit}><div className="adr-form-body"><div className="rule-form-grid">
-    <label>Rule ID *<input required name="ruleId" defaultValue={rule?.ruleId} placeholder="R-001" /></label>
-    <label>Linked ADR *<DarkSelect ariaLabel="Select linked ADR" value={adrId} options={[{ value: "", label: "Select ADR" }, ...projects.map((adr) => ({ value: adr.id, label: `${adr.adrId} — ${adr.title}` }))]} onChange={setAdrId} /><input className="rule-hidden-select" required name="adrId" value={adrId} readOnly /></label>
+    <label className="record-form-full-width">Linked ADR *<DarkSelect ariaLabel="Select linked ADR" value={adrId} options={[{ value: "", label: "Select ADR" }, ...projects.map((adr) => ({ value: adr.id, label: `${adr.adrId} — ${adr.title}` }))]} onChange={setAdrId} /><input className="rule-hidden-select" required name="adrId" value={adrId} readOnly /></label>
     <label>Source Element *<input required name="sourceElement" defaultValue={rule?.sourceElement} placeholder="OrderService" /></label>
     <SelectField name="sourceElementType" label="Source Element Type" value={rule?.sourceElementType ?? ""} options={elementTypes} />
     <SelectField name="relationshipType" label="Relationship Type" value={rule?.relationshipType ?? ""} options={relationships} />
@@ -272,8 +270,8 @@ export function DarkSelect({ ariaLabel, value, options, onChange }: { ariaLabel:
   return <div className="dark-select" ref={ref}><button className="dark-select-trigger" type="button" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)} onKeyDown={keyDown}><span>{selected?.label ?? "Select..."}</span><span className="dark-select-chevron" aria-hidden="true">⌄</span></button>{open && <div className="dark-select-menu" role="listbox" aria-label={ariaLabel}>{options.map((option, index) => <button className={`dark-select-option${option.value === value ? " selected" : ""}${index === highlighted ? " highlighted" : ""}`} key={option.value || "empty"} type="button" role="option" aria-selected={option.value === value} onMouseEnter={() => setHighlighted(index)} onClick={() => { onChange(option.value); setOpen(false); }}>{option.label}</button>)}</div>}</div>;
 }
 
-function RuleModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="project-modal adr-modal rule-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2>{title}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">x</button></div>{children}</div></div>;
+function RuleModal({ title, identifier, onClose, children }: { title: string; identifier?: string; onClose: () => void; children: ReactNode }) {
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="project-modal adr-modal rule-modal record-form-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2 className="record-modal-title">{title}{identifier && <span className="record-id-badge">{identifier}</span>}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">x</button></div>{children}</div></div>;
 }
 
 function titleCase(value: string) {

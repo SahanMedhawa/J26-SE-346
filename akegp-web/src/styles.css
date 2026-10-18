@@ -304,6 +304,20 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .rule-detail-heading h3 { color: #58a6ff; font-family: "DM Mono", monospace; }
 .rule-detail-heading > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .rule-details-modal { max-height: min(700px, calc(100vh - 40px)); }
+/* Component 1 creation and editing modals */
+.record-form-modal { overflow: hidden; }
+.record-form-modal .modal-header, .record-form-modal .modal-actions { flex: 0 0 auto; }
+.record-form-modal .record-modal-title { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.record-form-modal .record-id-badge { background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; font-family: "DM Mono", monospace; font-size: 11px; font-weight: 400; max-width: 100%; overflow-wrap: anywhere; padding: 3px 7px; }
+.record-form-modal .adr-form-body { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #6e7681 #161b22; }
+.record-form-modal .adr-form-body:hover { scrollbar-color: #7b8b80 #161b22; }
+.record-form-modal .adr-form-body::-webkit-scrollbar { width: 6px; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-track { background: #161b22; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-thumb { background: #6e7681; border-radius: 6px; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-thumb:hover { background: #7b8b80; }
+.record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.record-form-modal .record-form-full-width { grid-column: 1 / -1; }
+.record-form-modal .adr-form label, .record-form-modal .adr-form input, .record-form-modal .adr-form textarea { min-width: 0; }
 @media (max-width: 720px) {
   .adr-controls { grid-template-columns: 1fr; }
   .adr-intro { align-items: stretch; flex-direction: column; }
@@ -313,6 +327,7 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .rule-project-bar, .rule-controls { grid-template-columns: 1fr; }
   .rule-form-grid { grid-template-columns: 1fr; }
   .rule-form-grid .rule-description-field { grid-column: auto; }
+  .record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {

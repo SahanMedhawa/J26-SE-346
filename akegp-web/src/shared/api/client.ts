@@ -42,7 +42,6 @@ export type ADR = {
 };
 
 export type ADRInput = {
-  adrId: string;
   title: string;
   status: ADRStatus;
   context: string;
@@ -73,7 +72,7 @@ export type ArchitectureRule = {
   updatedAt: string;
 };
 
-export type ArchitectureRuleInput = Omit<ArchitectureRule, "id" | "projectId" | "adrDisplayId" | "createdAt" | "updatedAt">;
+export type ArchitectureRuleInput = Omit<ArchitectureRule, "id" | "ruleId" | "projectId" | "adrDisplayId" | "createdAt" | "updatedAt">;
 
 export type ValidationArchitectureStyle = Exclude<ArchitectureStyle, "MICROSERVICES_AND_LAYERED">;
 export type ValidateStructureRequest = { architectureStyle?: ValidationArchitectureStyle };

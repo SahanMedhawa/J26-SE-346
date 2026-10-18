@@ -272,7 +272,6 @@ export function ADRManagementPage() {
         }
         const form = new FormData(event.currentTarget);
         const input: ADRInput = {
-          adrId: String(form.get("adrId") ?? "").trim(),
           title: String(form.get("title") ?? "").trim(),
           status: String(form.get("status") ?? "PROPOSED") as ADRStatus,
           context: String(form.get("context") ?? "").trim(),
@@ -286,8 +285,8 @@ export function ADRManagementPage() {
             await adrsApi.update(selectedADR.projectId, selectedADR.id, { ...input, version: selectedADR.version });
             setNotice({ text: "ADR updated successfully.", success: true });
           } else {
-            await adrsApi.create(selectedProjectId, input);
-            setNotice({ text: "ADR created successfully.", success: true });
+            const created = await adrsApi.create(selectedProjectId, input);
+            setNotice({ text: `ADR ${created.adrId} created successfully.`, success: true });
           }
           setModal(null);
           await reloadADRs();
@@ -347,7 +346,7 @@ export function ADRManagementPage() {
           </tr>)}
         </tbody></table></div>
         {modal === "create" && <ADRModal title="Create ADR" onClose={() => setModal(null)}><ADRForm projects={activeProjects} projectId={selectedProjectId} onProjectChange={setSelectedProjectId} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, false)} busy={actionState} /></ADRModal>}
-        {modal === "edit" && selectedADR && <ADRModal title="Edit ADR" onClose={() => setModal(null)}><ADRForm adr={selectedADR} projects={projects} projectId={selectedADR.projectId} onProjectChange={setSelectedProjectId} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, true)} busy={actionState} /></ADRModal>}
+        {modal === "edit" && selectedADR && <ADRModal title="Edit ADR" identifier={selectedADR.adrId} onClose={() => setModal(null)}><ADRForm adr={selectedADR} projects={projects} projectId={selectedADR.projectId} onProjectChange={setSelectedProjectId} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, true)} busy={actionState} /></ADRModal>}
         {modal === "details" && selectedADR && <ADRDetails adr={selectedADR} project={projects.find((project) => project.id === selectedADR.projectId)} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
         {confirmDelete && <div className="modal-backdrop"><div className="project-modal confirmation-modal" role="alertdialog" aria-modal="true"><div className="modal-header"><h2>Delete ADR?</h2><button className="modal-close" type="button" onClick={() => setConfirmDelete(null)} aria-label="Close confirmation">x</button></div><div className="confirmation-content"><p>Are you sure you want to delete <strong>{confirmDelete.adrId}</strong> — {confirmDelete.title}?</p></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" type="button" disabled={actionState} onClick={() => void deleteADR()}>{actionState ? "Deleting..." : "Confirm Delete"}</button></div></div></div>}
       </section>;
@@ -400,12 +399,24 @@ export function ADRManagementPage() {
       </div>;
     }
 
-    function ADRModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-      return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="project-modal adr-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2>{title}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">x</button></div>{children}</div></div>;
+    function ADRModal({ title, identifier, onClose, children }: { title: string; identifier?: string; onClose: () => void; children: ReactNode }) {
+      return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="project-modal adr-modal record-form-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2 className="record-modal-title">{title}{identifier && <span className="record-id-badge">{identifier}</span>}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">x</button></div>{children}</div></div>;
     }
 
     function ADRForm({ adr, projects, projectId, onProjectChange, onCancel, onSubmit, busy }: { adr?: ADR; projects: Project[]; projectId: string; onProjectChange: (id: string) => void; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean }) {
-      return <form onSubmit={onSubmit} className="adr-form"><div className="adr-form-body"><div className="adr-form-grid"><label>ADR ID *<input name="adrId" required defaultValue={adr?.adrId} placeholder="ADR-001" /></label><label>Title *<input name="title" required defaultValue={adr?.title} /></label><label>Project *<DarkSelect ariaLabel="Select project for ADR" value={projectId} onChange={onProjectChange} options={projects.map((project) => ({ value: project.id, label: project.name }))} /><input type="hidden" name="projectId" value={projectId} /></label><label>Status *<select name="status" required defaultValue={adr?.status ?? "PROPOSED"}>{adrStatuses.map((value) => <option key={value} value={value}>{formatADRStatus(value)}</option>)}</select></label></div><label>Context *<textarea name="context" required minLength={10} maxLength={5000} defaultValue={adr?.context} /></label><label>Decision *<textarea name="decision" required minLength={10} maxLength={5000} defaultValue={adr?.decision} /></label><label>Consequences *<textarea name="consequences" required minLength={10} maxLength={5000} defaultValue={adr?.consequences} /></label></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit" disabled={busy}>{busy ? "Saving..." : "Save ADR"}</button></div></form>;
+      return <form onSubmit={onSubmit} className="adr-form">
+        <div className="adr-form-body">
+          <div className="adr-form-grid">
+            <label className="record-form-full-width">Title *<input name="title" required defaultValue={adr?.title} /></label>
+            <label>Project *<DarkSelect ariaLabel="Select project for ADR" value={projectId} onChange={onProjectChange} options={projects.map((project) => ({ value: project.id, label: project.name }))} /><input type="hidden" name="projectId" value={projectId} /></label>
+            <label>Status *<select name="status" required defaultValue={adr?.status ?? "PROPOSED"}>{adrStatuses.map((value) => <option key={value} value={value}>{formatADRStatus(value)}</option>)}</select></label>
+          </div>
+          <label>Context *<textarea name="context" required minLength={10} maxLength={5000} defaultValue={adr?.context} /></label>
+          <label>Decision *<textarea name="decision" required minLength={10} maxLength={5000} defaultValue={adr?.decision} /></label>
+          <label>Consequences *<textarea name="consequences" required minLength={10} maxLength={5000} defaultValue={adr?.consequences} /></label>
+        </div>
+        <div className="modal-actions"><button className="secondary-button" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit" disabled={busy}>{busy ? "Saving..." : "Save ADR"}</button></div>
+      </form>;
     }
 
     function ADRDetails({ adr, project, onClose, onEdit }: { adr: ADR; project?: Project; onClose: () => void; onEdit: () => void }) {
