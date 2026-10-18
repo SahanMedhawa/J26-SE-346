@@ -76,6 +76,16 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .workspace-status { color: #8b949e; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
 .workspace-status span { background: #3fb950; border-radius: 50%; display: inline-block; height: 6px; margin-right: 8px; width: 6px; }
 .rules-content { max-width: 1050px; padding: 45px clamp(28px, 5vw, 72px); }
+.architecture-projects { margin: 0 auto; width: 100%; }
+.architecture-projects .projects-back-nav { margin-bottom: 28px; }
+.architecture-projects .projects-back-nav a { display: inline-flex; }
+.home-app .home-projects-nav { background: #101710; border-bottom: 1px solid #2d3932; padding: 18px clamp(22px, 6vw, 88px); }
+.home-app .home-projects-link { align-items: center; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #f0f6fc; display: flex; gap: 24px; justify-content: space-between; max-width: 460px; padding: 14px 18px; text-decoration: none; }
+.home-app .home-projects-link strong { display: block; font-size: 14px; }
+.home-app .home-projects-link small { color: #8b949e; display: block; font-size: 12px; margin-top: 5px; }
+.home-app .home-projects-link > span:last-child { color: #3fb950; font-size: 20px; }
+.home-app .home-projects-link:hover { border-color: #3fb950; }
+.home-app .home-projects-link:focus-visible { outline: 2px solid #3fb950; outline-offset: 3px; }
 .adr-intro { align-items: start; display: flex; justify-content: space-between; gap: 24px; }
 .adr-intro h2 { font-size: 25px; }
 .adr-controls { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(220px, 1fr) 170px 220px; margin: 30px 0 14px; }
@@ -304,6 +314,50 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .rule-detail-heading h3 { color: #58a6ff; font-family: "DM Mono", monospace; }
 .rule-detail-heading > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .rule-details-modal { max-height: min(700px, calc(100vh - 40px)); }
+/* Component 1 creation and editing modals */
+.record-form-modal { overflow: hidden; }
+.record-form-modal .modal-header, .record-form-modal .modal-actions { flex: 0 0 auto; }
+.record-form-modal .record-modal-title { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.record-form-modal .record-id-badge { background: #21262d; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; font-family: "DM Mono", monospace; font-size: 11px; font-weight: 400; max-width: 100%; overflow-wrap: anywhere; padding: 3px 7px; }
+.record-form-modal .adr-form-body { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #6e7681 #161b22; }
+.record-form-modal .adr-form-body:hover { scrollbar-color: #7b8b80 #161b22; }
+.record-form-modal .adr-form-body::-webkit-scrollbar { width: 6px; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-track { background: #161b22; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-thumb { background: #6e7681; border-radius: 6px; }
+.record-form-modal .adr-form-body::-webkit-scrollbar-thumb:hover { background: #7b8b80; }
+.record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.record-form-modal .record-form-full-width { grid-column: 1 / -1; }
+.record-form-modal .adr-form label, .record-form-modal .adr-form input, .record-form-modal .adr-form textarea { min-width: 0; }
+.rule-heading-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.rule-heading-actions button { align-items: center; display: inline-flex; gap: 7px; white-space: nowrap; }
+.implementation-mappings-modal { max-width: 780px; }
+.implementation-mappings-modal .modal-header { gap: 16px; }
+.implementation-mappings-modal .modal-close { flex-shrink: 0; }
+.implementation-mappings-modal .mapping-hint, .implementation-mappings-modal .mapping-side p, .implementation-mappings-modal .mapping-picker-heading p { color: #8b949e; font-size: 12px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.implementation-mappings-modal h3 { font-size: 14px; margin: 0; }
+.implementation-mappings-modal .mapping-rule-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 16px; }
+.implementation-mappings-modal dt { color: #8b949e; font-size: 10px; margin-bottom: 5px; }
+.implementation-mappings-modal dd { color: #c9d1d9; font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+.implementation-mappings-modal .mapping-side { border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+.implementation-mappings-modal .mapping-side-heading, .implementation-mappings-modal .mapping-repository { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 12px; }
+.implementation-mappings-modal .mapping-repository { margin-bottom: 0; }
+.implementation-mappings-modal .mapping-repository p { flex: 1; min-width: 160px; }
+.implementation-mappings-modal .mapping-side-heading p { margin-top: 5px; }
+.implementation-mappings-modal .mapping-path-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.implementation-mappings-modal .mapping-path-list li { align-items: center; background: #0d1117; border-radius: 4px; display: flex; gap: 12px; justify-content: space-between; padding: 8px 10px; }
+.implementation-mappings-modal .mapping-path-list span, .implementation-mappings-modal .mapping-selected-files li { color: #c9d1d9; font-family: "DM Mono", monospace; font-size: 11px; overflow-wrap: anywhere; }
+.implementation-mappings-modal .mapping-path-list button { flex-shrink: 0; padding: 6px 9px; }
+.implementation-mappings-modal .repository-file-list { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; }
+.implementation-mappings-modal .repository-file-option { align-items: start; border-bottom: 1px solid #21262d; cursor: pointer; display: flex; flex-direction: row; font-family: "DM Mono", monospace; font-weight: 400; gap: 10px; padding: 10px 12px; }
+.implementation-mappings-modal .repository-file-option:last-child { border-bottom: 0; }
+.implementation-mappings-modal .repository-file-option:has(input:checked) { background: rgba(35, 134, 54, .12); }
+.implementation-mappings-modal .repository-file-option input { accent-color: #238636; flex: 0 0 auto; margin: 1px 0 0; }
+.implementation-mappings-modal .repository-file-option span { overflow-wrap: anywhere; }
+.implementation-mappings-modal .repository-file-list > .mapping-hint { padding: 14px; }
+.implementation-mappings-modal .mapping-selected-files { color: #8b949e; font-size: 12px; }
+.implementation-mappings-modal .mapping-selected-files summary { cursor: pointer; }
+.implementation-mappings-modal .form-notice { margin: 0; }
+.implementation-mappings-modal .form-notice a { color: #58a6ff; text-decoration: underline; }
 @media (max-width: 720px) {
   .adr-controls { grid-template-columns: 1fr; }
   .adr-intro { align-items: stretch; flex-direction: column; }
@@ -313,6 +367,10 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .rule-project-bar, .rule-controls { grid-template-columns: 1fr; }
   .rule-form-grid { grid-template-columns: 1fr; }
   .rule-form-grid .rule-description-field { grid-column: auto; }
+  .record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .rule-heading-actions { justify-content: flex-start; }
+  .architecture-rules-content > .projects-intro { align-items: stretch; flex-direction: column; }
+  .implementation-mappings-modal .mapping-rule-summary { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {
@@ -381,6 +439,44 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .rule-validation-content .validation-result dl { border-top: 1px solid #21262d; display: grid; font-size: 12px; gap: 10px; grid-template-columns: auto minmax(0, 1fr); margin: 20px 0 0; padding-top: 16px; }
 .rule-validation-content .validation-result dt { color: #8b949e; }
 .rule-validation-content .validation-result dd { color: #c9d1d9; margin: 0; overflow-wrap: anywhere; }
+.rule-validation-content .assurance-status { font-family: "DM Mono", monospace; font-size: 11px; overflow-wrap: anywhere; }
+.rule-validation-content .architect-review-panel { margin-top: 20px; }
+.rule-validation-content .architect-review-heading { align-items: start; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; }
+.rule-validation-content .architect-review-heading > div { flex: 1; min-width: 240px; }
+.rule-validation-content .architect-review-heading h3 { margin-bottom: 8px; }
+.rule-validation-content .architect-readiness { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0; }
+.rule-validation-content .architect-readiness > div { background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 12px; }
+.rule-validation-content .architect-readiness dt { color: #8b949e; font-size: 11px; margin-bottom: 8px; }
+.rule-validation-content .architect-readiness dd { color: #c9d1d9; margin: 0; }
+.rule-validation-content .architect-readiness .review-status-confirmed { color: #3fb950; }
+.rule-validation-content .assurance-status.review-status-confirmed, .rule-validation-content .assurance-status.structural-status-supported { color: #3fb950; }
+.rule-validation-content .assurance-status.review-status-pending, .rule-validation-content .assurance-status.structural-status-unsupported { color: #d29922; }
+.rule-validation-content .assurance-status.review-status-changes_requested { color: #ff7b72; }
+.rule-validation-content .assurance-status.structural-status-not_validated { color: #8b949e; }
+.rule-validation-content .architect-confirmation-register { margin-top: 20px; }
+.rule-validation-content .architect-confirmation-register tr[data-selected="true"] { background: rgba(35, 134, 54, .08); }
+.rule-validation-content .architect-confirmation-register .register-rule-link { background: transparent; border: 0; color: #58a6ff; cursor: pointer; font: inherit; font-family: "DM Mono", monospace; padding: 4px 0; text-decoration: underline; }
+.rule-validation-content .architect-confirmation-register .register-rule-link:focus-visible { outline: 2px solid #3fb950; outline-offset: 3px; }
+.rule-validation-content .architect-confirmation-register .register-row-error { color: #ff7b72; white-space: normal; }
+.rule-validation-content .review-stale-notice, .rule-validation-content .review-blocked { background: rgba(210, 153, 34, .08); border: 1px solid rgba(210, 153, 34, .3); border-radius: 5px; color: #d29922; font-size: 12px; line-height: 1.7; padding: 12px 16px; }
+.rule-validation-content .review-blocked ul { margin-bottom: 0; padding-left: 18px; }
+.rule-validation-content .architect-evidence { border: 1px solid #30363d; border-radius: 5px; font-size: 12px; margin: 16px 0; padding: 14px; }
+.rule-validation-content .architect-evidence summary { color: #c9d1d9; cursor: pointer; }
+.rule-validation-content .architect-evidence dl { display: grid; gap: 10px; grid-template-columns: minmax(100px, auto) minmax(0, 1fr); }
+.rule-validation-content .architect-evidence dt { color: #8b949e; }
+.rule-validation-content .architect-evidence dd { color: #c9d1d9; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.rule-validation-content .architect-evidence li { margin-top: 5px; overflow-wrap: anywhere; }
+.rule-validation-content .evidence-fingerprint { font-family: "DM Mono", monospace; font-size: 10px; }
+.rule-validation-content .architect-review-form { border-top: 1px solid #30363d; display: grid; gap: 14px; margin-top: 20px; padding-top: 18px; }
+.rule-validation-content .architect-review-form label { color: #c9d1d9; display: flex; flex-direction: column; font-size: 12px; gap: 8px; }
+.rule-validation-content .architect-review-form input, .rule-validation-content .architect-review-form textarea { background: #161b22; border: 1px solid #30363d; border-radius: 5px; color: #f0f6fc; font: inherit; padding: 10px; width: 100%; }
+.rule-validation-content .architect-review-form textarea { min-height: 90px; resize: vertical; }
+.rule-validation-content .architect-review-form .validation-actions { margin: 0; }
+.rule-validation-content .architect-review-form .validation-hint { margin: 0; }
+.rule-validation-content .architect-review-history { border-top: 1px solid #30363d; margin-top: 24px; padding-top: 16px; }
+.rule-validation-content .review-history-table-wrap { overflow-x: auto; }
+.rule-validation-content .review-history-table-wrap table { min-width: 620px; width: 100%; }
+.rule-validation-content .review-history-table-wrap td { font-size: 11px; max-width: 280px; overflow-wrap: anywhere; vertical-align: top; white-space: pre-wrap; }
 @media (max-width: 1100px) {
   .rule-validation-content .validation-panels { grid-template-columns: minmax(0, 1fr); }
 }
@@ -389,4 +485,6 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .rule-validation-content .validation-structure { grid-template-columns: minmax(0, 1fr); }
   .rule-validation-content .validation-arrow { justify-self: center; transform: rotate(90deg); }
   .rule-validation-content .validation-panel { padding: 18px; }
+  .rule-validation-content .architect-readiness { grid-template-columns: minmax(0, 1fr); }
+  .rule-validation-content .architect-evidence dl { grid-template-columns: minmax(0, 1fr); }
 }

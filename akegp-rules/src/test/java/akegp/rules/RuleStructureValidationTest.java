@@ -26,7 +26,7 @@ class RuleStructureValidationTest {
   private final ProjectRegistrationServiceImpl projects =
       new ProjectRegistrationServiceImpl(new InMemoryProjectRepository());
   private final ADRServiceImpl adrs =
-      new ADRServiceImpl(new InMemoryADRRepository(), projects);
+      new ADRServiceImpl(new InMemoryADRRepository(), projects, new TestReadableIdRepository());
   private final ArvmCatalogue catalogue = new ArvmCatalogue();
   private ValidatorFactory factory;
   private RuleStructureValidationService service;
@@ -38,9 +38,13 @@ class RuleStructureValidationTest {
   void setUp() {
     factory = Validation.buildDefaultValidatorFactory();
     service = new RuleStructureValidationService(rules, projects, adrs, factory.getValidator(), catalogue);
+    var assurance = new TestRuleAssuranceRepository();
+    var evidence = new RuleEvidenceService(projects, rules, adrs,
+        new ImplementationMappingControllerTest.MemoryMappings(rules), assurance);
+    var stored = new StoredStructuralValidationService(service, evidence, assurance, catalogue);
     mvc = MockMvcBuilders.standaloneSetup(
-        new RuleStructureValidationController(service, catalogue),
-        new RuleController(new RuleServiceImpl(rules, projects, adrs)))
+        new RuleStructureValidationController(stored, catalogue),
+        new RuleController(new RuleServiceImpl(rules, projects, adrs, new TestReadableIdRepository())))
         .setControllerAdvice(new ProjectRegistrationExceptionHandler()).build();
     register(Set.of(ArchitectureStyle.MICROSERVICES));
   }
@@ -54,7 +58,7 @@ class RuleStructureValidationTest {
     projectId = projects.register(new ProjectRegistrationRequest(
         "Project", null, "https://github.com/example/" + UUID.randomUUID(), styles)).id();
     adrId = adrs.create(projectId, new CreateADRRequest(
-        "ADR-001", "Architecture", ADRStatus.ACCEPTED, "Context", "Decision", "Consequences")).id();
+        null, "Architecture", ADRStatus.ACCEPTED, "Context", "Decision", "Consequences")).id();
   }
 
   private ArchitectureRule save(String source, String relationship, String target, RuleDecision decision) {
@@ -170,7 +174,7 @@ class RuleStructureValidationTest {
   @Test
   void validatesRuleSavedThroughCrudWithoutChangingIt() throws Exception {
     String json = """
-        {"ruleId":"R-001","adrId":"%s","sourceElement":"Order","sourceElementType":"SERVICE",
+        {"adrId":"%s","sourceElement":"Order","sourceElementType":"SERVICE",
         "relationshipType":"DIRECT_DATABASE_ACCESS","targetElement":"Orders","targetElementType":"DATABASE",
         "decision":"FORBIDDEN","description":"No direct database access","severity":"HIGH"}
         """.formatted(adrId);
@@ -204,7 +208,7 @@ class RuleStructureValidationTest {
       "targetElementType,RANDOM", "decision,RANDOM", "severity,RANDOM"})
   void crudRejectsInvalidEnums(String field, String value) throws Exception {
     String json = """
-        {"ruleId":"R-001","adrId":"%s","sourceElement":"Source","sourceElementType":"SERVICE",
+        {"adrId":"%s","sourceElement":"Source","sourceElementType":"SERVICE",
         "relationshipType":"CALLS","targetElement":"Target","targetElementType":"SERVICE",
         "decision":"ALLOWED","description":"Description","severity":"HIGH"}
         """.formatted(adrId);

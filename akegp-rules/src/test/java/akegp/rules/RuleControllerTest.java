@@ -1,5 +1,4 @@
 package akegp.rules;
-
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -40,13 +39,13 @@ class RuleControllerTest {
                     "Project", null, "https://github.com/example/project-" + UUID.randomUUID(),
                     Set.of(akegp.rules.domain.ArchitectureStyle.LAYERED)))
             .id();
-    var adrService = new ADRServiceImpl(new InMemoryADRRepository(), projectService);
+    var adrService = new ADRServiceImpl(new InMemoryADRRepository(), projectService, new TestReadableIdRepository());
     adrId =
         adrService
             .create(
                 projectId,
                 new CreateADRRequest(
-                    "ADR-001", "Choose service boundaries", ADRStatus.PROPOSED,
+                    null, "Choose service boundaries", ADRStatus.PROPOSED,
                     "The system needs clear service boundaries.",
                     "We will define boundaries by business capability.",
                     "Teams will own services and contracts."))
@@ -54,7 +53,7 @@ class RuleControllerTest {
     mockMvc =
         MockMvcBuilders.standaloneSetup(
                 new RuleController(
-                    new RuleServiceImpl(new InMemoryRuleRepository(), projectService, adrService)))
+                    new RuleServiceImpl(new InMemoryRuleRepository(), projectService, adrService, new TestReadableIdRepository())))
             .setControllerAdvice(new ProjectRegistrationExceptionHandler())
             .build();
   }
@@ -64,7 +63,7 @@ class RuleControllerTest {
     String request =
         """
         {
-          "ruleId": "R-001",
+
           "adrId": "%s",
           "sourceElement": "OrderService",
           "sourceElementType": "SERVICE",
@@ -90,6 +89,14 @@ class RuleControllerTest {
     String ruleUuid =
         com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.id");
 
+    mockMvc.perform(get("/api/rules/projects/{p}/rules/{r}", projectId, ruleUuid))
+        .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(ruleUuid))
+        .andExpect(jsonPath("$.adrId").value(adrId.toString()));
+    mockMvc.perform(put("/api/rules/projects/{p}/rules/{r}", projectId, ruleUuid)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(request.replace("{", "{\"ruleId\":\"R-999\",")))
+        .andExpect(status().isBadRequest());
+
     mockMvc
         .perform(get("/api/rules/projects/{projectId}/rules", projectId))
         .andExpect(status().isOk())
@@ -99,17 +106,22 @@ class RuleControllerTest {
         .perform(
             put("/api/rules/projects/{projectId}/rules/{ruleUuid}", projectId, ruleUuid)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(request.replace("R-001", "R-002")))
+                .content(request.replace("OrderService", "UpdatedService")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.ruleId").value("R-002"));
+        .andExpect(jsonPath("$.id").value(ruleUuid))
+        .andExpect(jsonPath("$.ruleId").value("R-001"));
 
     mockMvc
         .perform(delete("/api/rules/projects/{projectId}/rules/{ruleUuid}", projectId, ruleUuid))
         .andExpect(status().isNoContent());
+
+    mockMvc.perform(post("/api/rules/projects/{p}/rules", projectId)
+        .contentType(MediaType.APPLICATION_JSON).content(request))
+        .andExpect(status().isCreated()).andExpect(jsonPath("$.ruleId").value("R-002"));
   }
 
   @Test
-  void rejectsInvalidRuleAndDuplicateRuleId() throws Exception {
+  void rejectsMalformedAndValidClientSuppliedRuleIds() throws Exception {
     String request =
         """
         {
@@ -139,12 +151,6 @@ class RuleControllerTest {
             post("/api/rules/projects/{projectId}/rules", projectId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(valid))
-        .andExpect(status().isCreated());
-    mockMvc
-        .perform(
-            post("/api/rules/projects/{projectId}/rules", projectId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(valid))
-        .andExpect(status().isConflict());
+        .andExpect(status().isBadRequest());
   }
 }

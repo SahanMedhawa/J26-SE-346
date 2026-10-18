@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateADRRequest(
-    @NotBlank(message = "ADR ID is required")
-        @Pattern(regexp = "^ADR-[0-9]{3,}$", message = "ADR ID must follow the format ADR-001")
+    // Optional for compatibility; the service rejects changes to the stored identifier.
+    @Pattern(regexp = "^ADR-[0-9]{3,}$", message = "ADR ID must follow the format ADR-001")
         String adrId,
     @NotBlank(message = "Title is required")
         @Size(min = 5, max = 200, message = "Title must be between 5 and 200 characters")

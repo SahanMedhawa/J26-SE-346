@@ -11,8 +11,8 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record UpdateRuleRequest(
-    @NotBlank(message = "Rule ID is required")
-        @Pattern(regexp = "^R-[0-9]{3,}$", message = "Rule ID must follow the format R-001")
+    // Optional for compatibility; the service rejects changes to the stored identifier.
+    @Pattern(regexp = "^R-[0-9]{3,}$", message = "Rule ID must follow the format R-001")
         String ruleId,
     @NotNull(message = "ADR ID is required") UUID adrId,
     @NotBlank(message = "Source element is required")

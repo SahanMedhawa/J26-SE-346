@@ -6,3 +6,5 @@ akegp-app/src/main/resources/application-local.yml
 *.iml
 .DS_Store
 config/
+# Track Component 1 Java configuration while keeping local configuration ignored.
+!akegp-rules/src/main/java/akegp/rules/config/
