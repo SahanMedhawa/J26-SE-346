@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ProjectRegistrationExceptionHandler {
+  @ExceptionHandler(akegp.rules.service.ArchitectReviewException.class)
+  ResponseEntity<ApiError> handleArchitectReview(akegp.rules.service.ArchitectReviewException exception) {
+    return error(exception.status(), exception.getMessage(), Map.of());
+  }
+
   @ExceptionHandler(akegp.rules.service.RepositoryBrowsingException.class)
   ResponseEntity<ApiError> handleRepositoryBrowsing(
       akegp.rules.service.RepositoryBrowsingException exception) {

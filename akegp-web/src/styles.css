@@ -429,6 +429,44 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .rule-validation-content .validation-result dl { border-top: 1px solid #21262d; display: grid; font-size: 12px; gap: 10px; grid-template-columns: auto minmax(0, 1fr); margin: 20px 0 0; padding-top: 16px; }
 .rule-validation-content .validation-result dt { color: #8b949e; }
 .rule-validation-content .validation-result dd { color: #c9d1d9; margin: 0; overflow-wrap: anywhere; }
+.rule-validation-content .assurance-status { font-family: "DM Mono", monospace; font-size: 11px; overflow-wrap: anywhere; }
+.rule-validation-content .architect-review-panel { margin-top: 20px; }
+.rule-validation-content .architect-review-heading { align-items: start; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; }
+.rule-validation-content .architect-review-heading > div { flex: 1; min-width: 240px; }
+.rule-validation-content .architect-review-heading h3 { margin-bottom: 8px; }
+.rule-validation-content .architect-readiness { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0; }
+.rule-validation-content .architect-readiness > div { background: #161b22; border: 1px solid #30363d; border-radius: 5px; padding: 12px; }
+.rule-validation-content .architect-readiness dt { color: #8b949e; font-size: 11px; margin-bottom: 8px; }
+.rule-validation-content .architect-readiness dd { color: #c9d1d9; margin: 0; }
+.rule-validation-content .architect-readiness .review-status-confirmed { color: #3fb950; }
+.rule-validation-content .assurance-status.review-status-confirmed, .rule-validation-content .assurance-status.structural-status-supported { color: #3fb950; }
+.rule-validation-content .assurance-status.review-status-pending, .rule-validation-content .assurance-status.structural-status-unsupported { color: #d29922; }
+.rule-validation-content .assurance-status.review-status-changes_requested { color: #ff7b72; }
+.rule-validation-content .assurance-status.structural-status-not_validated { color: #8b949e; }
+.rule-validation-content .architect-confirmation-register { margin-top: 20px; }
+.rule-validation-content .architect-confirmation-register tr[data-selected="true"] { background: rgba(35, 134, 54, .08); }
+.rule-validation-content .architect-confirmation-register .register-rule-link { background: transparent; border: 0; color: #58a6ff; cursor: pointer; font: inherit; font-family: "DM Mono", monospace; padding: 4px 0; text-decoration: underline; }
+.rule-validation-content .architect-confirmation-register .register-rule-link:focus-visible { outline: 2px solid #3fb950; outline-offset: 3px; }
+.rule-validation-content .architect-confirmation-register .register-row-error { color: #ff7b72; white-space: normal; }
+.rule-validation-content .review-stale-notice, .rule-validation-content .review-blocked { background: rgba(210, 153, 34, .08); border: 1px solid rgba(210, 153, 34, .3); border-radius: 5px; color: #d29922; font-size: 12px; line-height: 1.7; padding: 12px 16px; }
+.rule-validation-content .review-blocked ul { margin-bottom: 0; padding-left: 18px; }
+.rule-validation-content .architect-evidence { border: 1px solid #30363d; border-radius: 5px; font-size: 12px; margin: 16px 0; padding: 14px; }
+.rule-validation-content .architect-evidence summary { color: #c9d1d9; cursor: pointer; }
+.rule-validation-content .architect-evidence dl { display: grid; gap: 10px; grid-template-columns: minmax(100px, auto) minmax(0, 1fr); }
+.rule-validation-content .architect-evidence dt { color: #8b949e; }
+.rule-validation-content .architect-evidence dd { color: #c9d1d9; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.rule-validation-content .architect-evidence li { margin-top: 5px; overflow-wrap: anywhere; }
+.rule-validation-content .evidence-fingerprint { font-family: "DM Mono", monospace; font-size: 10px; }
+.rule-validation-content .architect-review-form { border-top: 1px solid #30363d; display: grid; gap: 14px; margin-top: 20px; padding-top: 18px; }
+.rule-validation-content .architect-review-form label { color: #c9d1d9; display: flex; flex-direction: column; font-size: 12px; gap: 8px; }
+.rule-validation-content .architect-review-form input, .rule-validation-content .architect-review-form textarea { background: #161b22; border: 1px solid #30363d; border-radius: 5px; color: #f0f6fc; font: inherit; padding: 10px; width: 100%; }
+.rule-validation-content .architect-review-form textarea { min-height: 90px; resize: vertical; }
+.rule-validation-content .architect-review-form .validation-actions { margin: 0; }
+.rule-validation-content .architect-review-form .validation-hint { margin: 0; }
+.rule-validation-content .architect-review-history { border-top: 1px solid #30363d; margin-top: 24px; padding-top: 16px; }
+.rule-validation-content .review-history-table-wrap { overflow-x: auto; }
+.rule-validation-content .review-history-table-wrap table { min-width: 620px; width: 100%; }
+.rule-validation-content .review-history-table-wrap td { font-size: 11px; max-width: 280px; overflow-wrap: anywhere; vertical-align: top; white-space: pre-wrap; }
 @media (max-width: 1100px) {
   .rule-validation-content .validation-panels { grid-template-columns: minmax(0, 1fr); }
 }
@@ -437,4 +475,6 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .rule-validation-content .validation-structure { grid-template-columns: minmax(0, 1fr); }
   .rule-validation-content .validation-arrow { justify-self: center; transform: rotate(90deg); }
   .rule-validation-content .validation-panel { padding: 18px; }
+  .rule-validation-content .architect-readiness { grid-template-columns: minmax(0, 1fr); }
+  .rule-validation-content .architect-evidence dl { grid-template-columns: minmax(0, 1fr); }
 }

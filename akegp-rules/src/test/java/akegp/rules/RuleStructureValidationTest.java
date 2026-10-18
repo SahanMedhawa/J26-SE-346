@@ -38,8 +38,12 @@ class RuleStructureValidationTest {
   void setUp() {
     factory = Validation.buildDefaultValidatorFactory();
     service = new RuleStructureValidationService(rules, projects, adrs, factory.getValidator(), catalogue);
+    var assurance = new TestRuleAssuranceRepository();
+    var evidence = new RuleEvidenceService(projects, rules, adrs,
+        new ImplementationMappingControllerTest.MemoryMappings(rules), assurance);
+    var stored = new StoredStructuralValidationService(service, evidence, assurance, catalogue);
     mvc = MockMvcBuilders.standaloneSetup(
-        new RuleStructureValidationController(service, catalogue),
+        new RuleStructureValidationController(stored, catalogue),
         new RuleController(new RuleServiceImpl(rules, projects, adrs, new TestReadableIdRepository())))
         .setControllerAdvice(new ProjectRegistrationExceptionHandler()).build();
     register(Set.of(ArchitectureStyle.MICROSERVICES));

@@ -90,6 +90,68 @@ export type ImplementationMappings = ImplementationMappingsInput & { ruleUuid: s
 
 export type ValidationArchitectureStyle = Exclude<ArchitectureStyle, "MICROSERVICES_AND_LAYERED">;
 export type ValidateStructureRequest = { architectureStyle?: ValidationArchitectureStyle };
+export type StructuralValidationStatus = "NOT_VALIDATED" | "SUPPORTED" | "UNSUPPORTED";
+export type StoredStructuralValidation = {
+  ruleUuid: string;
+  status: StructuralValidationStatus;
+  reason: string;
+  matchedSignatureId: string | null;
+  architectureStyle: ArchitectureStyle | null;
+  catalogueVersion: string | null;
+  validatedFingerprint: string | null;
+  validatedAt: string | null;
+  current: boolean;
+  lastValidationStatus: StructuralValidationStatus | null;
+  validatedRevision: number | null;
+  currentRevision: number;
+};
+
+export type ArchitectReviewDecision = "CONFIRMED" | "CHANGES_REQUESTED";
+export type ArchitectReviewStatus = "PENDING" | ArchitectReviewDecision;
+export type ArchitectReviewRecord = {
+  id: string;
+  ruleUuid: string;
+  projectUuid: string;
+  decision: ArchitectReviewDecision;
+  reviewer: string;
+  comments: string | null;
+  decidedAt: string;
+  ruleFingerprint: string;
+  adrUuid: string | null;
+  adrVersion: number | null;
+  adrFingerprint: string;
+  mappingFingerprint: string;
+  evidenceFingerprint: string;
+  reviewRevision: number;
+  validationStatus: StructuralValidationStatus;
+  validationFingerprint: string | null;
+};
+export type ArchitectReviewHistoryEntry = {
+  review: ArchitectReviewRecord;
+  current: boolean;
+  reviewerAuthenticated: boolean;
+};
+export type ArchitectReviewWorkspace = {
+  ruleUuid: string;
+  ruleId: string;
+  adrUuid: string;
+  adrDisplayId: string | null;
+  adrVersion: number | null;
+  structuralValidationStatus: StructuralValidationStatus;
+  structuralValidationCurrent: boolean;
+  reviewStatus: ArchitectReviewStatus;
+  confirmationEligible: boolean;
+  blockedReasons: string[];
+  evidenceFingerprint: string;
+  evidenceRevision: number;
+  sourceFileCount: number;
+  targetFileCount: number;
+  latestReview: ArchitectReviewHistoryEntry | null;
+};
+export type ArchitectReviewInput = { reviewer: string; comments: string } & (
+  { decision: "CONFIRMED"; expectedEvidenceFingerprint: string } |
+  { decision: "CHANGES_REQUESTED"; expectedEvidenceFingerprint?: string }
+);
 export type StructuralValidationResponse = {
   ruleId: string;
   ruleUuid: string;
@@ -181,6 +243,13 @@ export const adrsApi = {
 };
 
 export const rulesApi = {
+  storedStructuralValidation: (projectId: string, ruleUuid: string) => request<StoredStructuralValidation>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/structural-validation`),
+  architectReview: (projectId: string, ruleUuid: string) => request<ArchitectReviewWorkspace>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review`),
+  architectReviewHistory: (projectId: string, ruleUuid: string) => request<ArchitectReviewHistoryEntry[]>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review/history`),
+  submitArchitectReview: (projectId: string, ruleUuid: string, input: ArchitectReviewInput) => request<ArchitectReviewWorkspace>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }),
   repositoryFiles: (projectId: string) => request<RepositoryFiles>(`/api/rules/projects/${projectId}/repository/files`),
   implementationMappings: (projectId: string, ruleUuid: string) => request<ImplementationMappings>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/implementation-mappings`),
   saveImplementationMappings: (projectId: string, ruleUuid: string, input: ImplementationMappingsInput) => request<ImplementationMappings>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/implementation-mappings`, {
