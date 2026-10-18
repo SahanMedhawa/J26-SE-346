@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ProjectRegistrationExceptionHandler {
+  @ExceptionHandler(akegp.rules.service.ReadableIdException.class)
+  ResponseEntity<ApiError> handleReadableId(akegp.rules.service.ReadableIdException exception) {
+    return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
+  }
+
   @ExceptionHandler(akegp.rules.validation.RuleValidationException.class)
   ResponseEntity<ApiError> handleRuleValidation(
       akegp.rules.validation.RuleValidationException exception) {

@@ -1,6 +1,6 @@
 package akegp.rules.validation;
 
-import akegp.rules.api.CreateRuleRequest;
+import akegp.rules.api.UpdateRuleRequest;
 import akegp.rules.api.StructuralValidationResponse;
 import akegp.rules.domain.ArchitectureStyle;
 import akegp.rules.repository.RuleRepository;
@@ -43,7 +43,10 @@ public class RuleStructureValidationService {
       throw new RuleValidationException("Saved rule UUID is missing or invalid.");
     }
     // Reuse the existing CRUD constraints, including required enums and text limits.
-    var fields = new CreateRuleRequest(
+    if (rule.ruleId() == null || rule.ruleId().isBlank()) {
+      throw new RuleValidationException("Saved rule contains invalid or missing required information: ruleId");
+    }
+    var fields = new UpdateRuleRequest(
         rule.ruleId(), rule.adrId(), rule.sourceElement(), rule.sourceElementType(),
         rule.relationshipType(), rule.targetElement(), rule.targetElementType(),
         rule.decision(), rule.description(), rule.severity());
