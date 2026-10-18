@@ -17,6 +17,13 @@ services:
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: akegp-dev
+      AKEGP_DB_URL: ${AKEGP_DB_URL:-jdbc:postgresql://timescaledb:5432/akegp}
+      AKEGP_DB_USER: ${AKEGP_DB_USER:-akegp}
+      AKEGP_DB_PASSWORD: ${AKEGP_DB_PASSWORD:-akegp}
+      AKEGP_RULES_DB_URL: ${AKEGP_RULES_DB_URL:-jdbc:postgresql://timescaledb:5432/akegp}
+      AKEGP_RULES_DB_USER: ${AKEGP_RULES_DB_USER:-akegp}
+      AKEGP_RULES_DB_PASSWORD: ${AKEGP_RULES_DB_PASSWORD:-akegp}
+
     ports: ["8080:8080"]
   web:
     build: { context: akegp-web }
