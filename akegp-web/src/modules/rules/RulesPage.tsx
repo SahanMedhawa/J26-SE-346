@@ -13,7 +13,7 @@ const ruleModules: RuleModule[] = [
   { label: "Architecture Projects", path: "/rules/projects", icon: "projects" },
   { label: "ADR Management", path: "/rules/adrs", icon: "adrs" },
   { label: "Architecture Rule Engineering", path: "/rules/architecture-rules", icon: "rules" },
-  { label: "Formal Rule & Mapping Validation", path: "/rules/validation", icon: "validation" },
+  { label: "Rule Validation", path: "/rules/validation", icon: "validation" },
 ];
 
 function ModuleIcon({ type }: { type: RuleModule["icon"] }) {
