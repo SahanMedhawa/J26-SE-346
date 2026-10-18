@@ -23,9 +23,9 @@ public class Neo4jCodeGraphRepository {
         transaction.run("MATCH (f:CodeFile {repositoryId: $repositoryId}) DETACH DELETE f",
             Values.parameters("repositoryId", repositoryId)).consume();
         List<Map<String, Object>> files = graph.files().stream()
-            .map(file -> Map.<String, Object>of("path", file.path(), "language", file.language()))
+            .map(file -> Map.<String, Object>of("path", file.path(), "language", file.language(), "kind", file.kind()))
             .toList();
-        transaction.run("UNWIND $files AS file MERGE (f:CodeFile {repositoryId: $repositoryId, path: file.path}) SET f.language = file.language",
+        transaction.run("UNWIND $files AS file MERGE (f:CodeFile {repositoryId: $repositoryId, path: file.path}) SET f.language = file.language, f.kind = file.kind",
             Values.parameters("repositoryId", repositoryId, "files", files)).consume();
         List<Map<String, Object>> dependencies = graph.dependencies().stream()
             .map(edge -> Map.<String, Object>of("source", edge.source(), "target", edge.target()))
@@ -40,9 +40,9 @@ public class Neo4jCodeGraphRepository {
   public CodeGraph find(String repositoryId) {
     try (Session session = driver.session()) {
       return session.executeRead(transaction -> {
-        List<CodeGraph.CodeFile> files = transaction.run("MATCH (f:CodeFile {repositoryId: $repositoryId}) RETURN f.path AS path, f.language AS language ORDER BY path",
+        List<CodeGraph.CodeFile> files = transaction.run("MATCH (f:CodeFile {repositoryId: $repositoryId}) RETURN f.path AS path, f.language AS language, coalesce(f.kind, 'Internal') AS kind ORDER BY path",
                 Values.parameters("repositoryId", repositoryId))
-            .list(record -> new CodeGraph.CodeFile(record.get("path").asString(), record.get("language").asString()));
+            .list(record -> new CodeGraph.CodeFile(record.get("path").asString(), record.get("language").asString(), record.get("kind").asString()));
         List<CodeGraph.Dependency> dependencies = transaction.run("MATCH (source:CodeFile {repositoryId: $repositoryId})-[:DEPENDS_ON]->(target:CodeFile {repositoryId: $repositoryId}) RETURN source.path AS source, target.path AS target ORDER BY source, target",
                 Values.parameters("repositoryId", repositoryId))
             .list(record -> new CodeGraph.Dependency(record.get("source").asString(), record.get("target").asString()));
