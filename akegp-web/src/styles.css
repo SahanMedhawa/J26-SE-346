@@ -76,6 +76,16 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .workspace-status { color: #8b949e; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
 .workspace-status span { background: #3fb950; border-radius: 50%; display: inline-block; height: 6px; margin-right: 8px; width: 6px; }
 .rules-content { max-width: 1050px; padding: 45px clamp(28px, 5vw, 72px); }
+.architecture-projects { margin: 0 auto; width: 100%; }
+.architecture-projects .projects-back-nav { margin-bottom: 28px; }
+.architecture-projects .projects-back-nav a { display: inline-flex; }
+.home-app .home-projects-nav { background: #101710; border-bottom: 1px solid #2d3932; padding: 18px clamp(22px, 6vw, 88px); }
+.home-app .home-projects-link { align-items: center; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #f0f6fc; display: flex; gap: 24px; justify-content: space-between; max-width: 460px; padding: 14px 18px; text-decoration: none; }
+.home-app .home-projects-link strong { display: block; font-size: 14px; }
+.home-app .home-projects-link small { color: #8b949e; display: block; font-size: 12px; margin-top: 5px; }
+.home-app .home-projects-link > span:last-child { color: #3fb950; font-size: 20px; }
+.home-app .home-projects-link:hover { border-color: #3fb950; }
+.home-app .home-projects-link:focus-visible { outline: 2px solid #3fb950; outline-offset: 3px; }
 .adr-intro { align-items: start; display: flex; justify-content: space-between; gap: 24px; }
 .adr-intro h2 { font-size: 25px; }
 .adr-controls { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(220px, 1fr) 170px 220px; margin: 30px 0 14px; }
