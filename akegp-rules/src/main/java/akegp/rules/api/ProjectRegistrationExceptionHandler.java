@@ -21,6 +21,21 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ProjectRegistrationExceptionHandler {
+  @ExceptionHandler(akegp.rules.service.RepositoryBrowsingException.class)
+  ResponseEntity<ApiError> handleRepositoryBrowsing(
+      akegp.rules.service.RepositoryBrowsingException exception) {
+    ResponseEntity<ApiError> response = error(exception.status(), exception.getMessage(), Map.of());
+    if (exception.retryAfter() == null) return response;
+    return ResponseEntity.status(exception.status())
+        .header("Retry-After", exception.retryAfter()).body(response.getBody());
+  }
+
+  @ExceptionHandler(akegp.rules.service.ImplementationMappingValidationException.class)
+  ResponseEntity<ApiError> handleImplementationMappingValidation(
+      akegp.rules.service.ImplementationMappingValidationException exception) {
+    return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
+  }
+
   @ExceptionHandler(akegp.rules.service.ReadableIdException.class)
   ResponseEntity<ApiError> handleReadableId(akegp.rules.service.ReadableIdException exception) {
     return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());

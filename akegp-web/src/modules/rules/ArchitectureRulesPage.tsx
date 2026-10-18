@@ -15,6 +15,7 @@ import {
   rulesApi,
 } from "../../shared/api/client";
 import { useSelectedProject } from "./rulesWorkspace";
+import { ImplementationMappingsModal } from "./ImplementationMappingsModal";
 
 const elementTypes: ArchitectureElementType[] = ["SERVICE", "DATABASE", "CONTROLLER", "SERVICE_LAYER", "REPOSITORY", "MESSAGE_BROKER", "API_GATEWAY", "EXTERNAL_SYSTEM"];
 const relationships: RelationshipType[] = ["CALLS", "DEPENDS_ON", "DIRECT_DATABASE_ACCESS", "DATA_ACCESS", "PUBLISHES_TO", "CONSUMES_FROM", "USES_API"];
@@ -44,6 +45,7 @@ export function ArchitectureRulesPage() {
   const [selectedRule, setSelectedRule] = useState<ArchitectureRule | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ArchitectureRule | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mappingsOpen, setMappingsOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -194,7 +196,10 @@ export function ArchitectureRulesPage() {
   return <section className="rules-content architecture-rules-content">
     <div className="projects-intro">
       <div><p className="content-kicker">Architecture decisions and constraints</p><h2>Architecture Rule Engineering</h2><p className="projects-description">Manage architecture rules linked to the decisions that govern each project.</p></div>
-      <button className="primary-button" type="button" disabled={!selectedProject || selectedProject.status !== "ACTIVE" || !adrs.length} onClick={() => { setSelectedRule(null); setModal("create"); }}><span aria-hidden="true">+</span> Create Rule</button>
+      <div className="rule-heading-actions">
+        <button className="secondary-button" type="button" disabled={!projects.length} onClick={() => setMappingsOpen(true)}><svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v11H3zM3 7V4h7l2 3" /></svg> Implementation Mappings</button>
+        <button className="primary-button" type="button" disabled={!selectedProject || selectedProject.status !== "ACTIVE" || !adrs.length} onClick={() => { setSelectedRule(null); setModal("create"); }}><span aria-hidden="true">+</span> Create Rule</button>
+      </div>
     </div>
     <div className="rule-project-bar"><span>Architecture project</span><DarkSelect ariaLabel="Select architecture project" value={projectId} onChange={changeProject} options={[{ value: "", label: "Select project" }, ...projects.map((project) => ({ value: project.id, label: `${project.name}${project.status === "INACTIVE" ? " (Inactive)" : ""}` }))]} /></div>
     <div className="rule-controls">
@@ -211,6 +216,7 @@ export function ArchitectureRulesPage() {
     {modal === "create" && <RuleModal title="Create Architecture Rule" onClose={() => setModal(null)}><RuleForm projects={adrs} rule={undefined} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, false)} /></RuleModal>}
     {modal === "edit" && selectedRule && <RuleModal title="Edit Architecture Rule" identifier={selectedRule.ruleId} onClose={() => setModal(null)}><RuleForm projects={adrs} rule={selectedRule} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, true)} /></RuleModal>}
     {modal === "details" && selectedRule && <RuleDetails rule={selectedRule} project={selectedProject} adrs={adrs} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
+    {mappingsOpen && <ImplementationMappingsModal projects={projects} initialProjectId={projectId} onClose={() => setMappingsOpen(false)} />}
     {confirmDelete && <div className="modal-backdrop"><div className="project-modal confirmation-modal" role="alertdialog" aria-modal="true"><div className="modal-header"><h2>Delete architecture rule?</h2><button className="modal-close" type="button" onClick={() => setConfirmDelete(null)} aria-label="Close confirmation">x</button></div><div className="confirmation-content"><p>Are you sure you want to delete architecture rule <strong>{confirmDelete.ruleId}</strong>? This action cannot be undone.</p></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" type="button" disabled={busy} onClick={() => void deleteRule()}>{busy ? "Deleting..." : "Delete Rule"}</button></div></div></div>}
   </section>;
 }

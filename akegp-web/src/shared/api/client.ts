@@ -74,6 +74,20 @@ export type ArchitectureRule = {
 
 export type ArchitectureRuleInput = Omit<ArchitectureRule, "id" | "ruleId" | "projectId" | "adrDisplayId" | "createdAt" | "updatedAt">;
 
+export type RepositoryFiles = {
+  projectId: string;
+  repositoryUrl: string;
+  branch: string | null;
+  files: string[];
+};
+
+export type ImplementationMappingsInput = {
+  sourceFiles: string[];
+  targetFiles: string[];
+};
+
+export type ImplementationMappings = ImplementationMappingsInput & { ruleUuid: string };
+
 export type ValidationArchitectureStyle = Exclude<ArchitectureStyle, "MICROSERVICES_AND_LAYERED">;
 export type ValidateStructureRequest = { architectureStyle?: ValidationArchitectureStyle };
 export type StructuralValidationResponse = {
@@ -167,6 +181,12 @@ export const adrsApi = {
 };
 
 export const rulesApi = {
+  repositoryFiles: (projectId: string) => request<RepositoryFiles>(`/api/rules/projects/${projectId}/repository/files`),
+  implementationMappings: (projectId: string, ruleUuid: string) => request<ImplementationMappings>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/implementation-mappings`),
+  saveImplementationMappings: (projectId: string, ruleUuid: string, input: ImplementationMappingsInput) => request<ImplementationMappings>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/implementation-mappings`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  }),
   validateStructure: (projectId: string, ruleUuid: string, input: ValidateStructureRequest) => request<StructuralValidationResponse>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/validate-structure`, {
     method: "POST",
     body: JSON.stringify(input),

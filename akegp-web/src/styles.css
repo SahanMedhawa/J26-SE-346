@@ -318,6 +318,36 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .record-form-modal .record-form-full-width { grid-column: 1 / -1; }
 .record-form-modal .adr-form label, .record-form-modal .adr-form input, .record-form-modal .adr-form textarea { min-width: 0; }
+.rule-heading-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.rule-heading-actions button { align-items: center; display: inline-flex; gap: 7px; white-space: nowrap; }
+.implementation-mappings-modal { max-width: 780px; }
+.implementation-mappings-modal .modal-header { gap: 16px; }
+.implementation-mappings-modal .modal-close { flex-shrink: 0; }
+.implementation-mappings-modal .mapping-hint, .implementation-mappings-modal .mapping-side p, .implementation-mappings-modal .mapping-picker-heading p { color: #8b949e; font-size: 12px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.implementation-mappings-modal h3 { font-size: 14px; margin: 0; }
+.implementation-mappings-modal .mapping-rule-summary { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 16px; }
+.implementation-mappings-modal dt { color: #8b949e; font-size: 10px; margin-bottom: 5px; }
+.implementation-mappings-modal dd { color: #c9d1d9; font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+.implementation-mappings-modal .mapping-side { border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+.implementation-mappings-modal .mapping-side-heading, .implementation-mappings-modal .mapping-repository { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 12px; }
+.implementation-mappings-modal .mapping-repository { margin-bottom: 0; }
+.implementation-mappings-modal .mapping-repository p { flex: 1; min-width: 160px; }
+.implementation-mappings-modal .mapping-side-heading p { margin-top: 5px; }
+.implementation-mappings-modal .mapping-path-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.implementation-mappings-modal .mapping-path-list li { align-items: center; background: #0d1117; border-radius: 4px; display: flex; gap: 12px; justify-content: space-between; padding: 8px 10px; }
+.implementation-mappings-modal .mapping-path-list span, .implementation-mappings-modal .mapping-selected-files li { color: #c9d1d9; font-family: "DM Mono", monospace; font-size: 11px; overflow-wrap: anywhere; }
+.implementation-mappings-modal .mapping-path-list button { flex-shrink: 0; padding: 6px 9px; }
+.implementation-mappings-modal .repository-file-list { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; }
+.implementation-mappings-modal .repository-file-option { align-items: start; border-bottom: 1px solid #21262d; cursor: pointer; display: flex; flex-direction: row; font-family: "DM Mono", monospace; font-weight: 400; gap: 10px; padding: 10px 12px; }
+.implementation-mappings-modal .repository-file-option:last-child { border-bottom: 0; }
+.implementation-mappings-modal .repository-file-option:has(input:checked) { background: rgba(35, 134, 54, .12); }
+.implementation-mappings-modal .repository-file-option input { accent-color: #238636; flex: 0 0 auto; margin: 1px 0 0; }
+.implementation-mappings-modal .repository-file-option span { overflow-wrap: anywhere; }
+.implementation-mappings-modal .repository-file-list > .mapping-hint { padding: 14px; }
+.implementation-mappings-modal .mapping-selected-files { color: #8b949e; font-size: 12px; }
+.implementation-mappings-modal .mapping-selected-files summary { cursor: pointer; }
+.implementation-mappings-modal .form-notice { margin: 0; }
+.implementation-mappings-modal .form-notice a { color: #58a6ff; text-decoration: underline; }
 @media (max-width: 720px) {
   .adr-controls { grid-template-columns: 1fr; }
   .adr-intro { align-items: stretch; flex-direction: column; }
@@ -328,6 +358,9 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
   .rule-form-grid { grid-template-columns: 1fr; }
   .rule-form-grid .rule-description-field { grid-column: auto; }
   .record-form-modal .adr-form-grid, .record-form-modal .rule-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .rule-heading-actions { justify-content: flex-start; }
+  .architecture-rules-content > .projects-intro { align-items: stretch; flex-direction: column; }
+  .implementation-mappings-modal .mapping-rule-summary { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {
