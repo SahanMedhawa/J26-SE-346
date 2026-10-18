@@ -5,3 +5,4 @@ akegp-app/src/main/resources/application-local.yml
 .idea/
 *.iml
 .DS_Store
+config/

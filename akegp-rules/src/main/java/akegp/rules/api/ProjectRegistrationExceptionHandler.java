@@ -21,6 +21,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ProjectRegistrationExceptionHandler {
+  @ExceptionHandler(akegp.rules.validation.RuleValidationException.class)
+  ResponseEntity<ApiError> handleRuleValidation(
+      akegp.rules.validation.RuleValidationException exception) {
+    return error(HttpStatus.BAD_REQUEST, exception.getMessage(), Map.of());
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
     Map<String, String> fieldErrors = new LinkedHashMap<>();
