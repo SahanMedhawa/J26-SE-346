@@ -25,7 +25,11 @@ public class ArchitectReviewService {
 
   @Transactional("rulesTransactionManager")
   public ArchitectReviewResponse find(UUID projectId, UUID ruleUuid) {
-    var snapshot = evidence.load(projectId, ruleUuid);
+    return current(evidence.load(projectId, ruleUuid));
+  }
+
+  /** Shared effective-review calculation for an already loaded, transaction-consistent evidence snapshot. */
+  public ArchitectReviewResponse current(RuleEvidenceService.Evidence snapshot) {
     return workspace(snapshot, validation.current(snapshot));
   }
 
