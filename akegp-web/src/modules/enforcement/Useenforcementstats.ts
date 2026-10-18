@@ -1,0 +1,44 @@
+import { useEffect, useState } from "react";
+import { getEnforcementStats, getRunDetails } from "./Enforcementapi";
+import type { EnforcementStats, RunDetail } from "./Enforcementapi";
+
+const REFRESH_MS = 4000;
+
+export function useEnforcementStats() {
+  const [stats, setStats] = useState<EnforcementStats | null>(null);
+  const [details, setDetails] = useState<Map<number, RunDetail>>(new Map());
+  const [failed, setFailed] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function load() {
+      try {
+        const next = await getEnforcementStats(controller.signal);
+        setStats(next);
+        setFailed(false);
+        setUpdatedAt(new Date());
+      } catch {
+        if (!controller.signal.aborted) setFailed(true);
+        return;
+      }
+      try {
+        // Details are optional: if this call fails the table still works, just without the Details buttons.
+        const runs = await getRunDetails(controller.signal);
+        setDetails(new Map(runs.map((run) => [run.runId, run])));
+      } catch {
+        if (!controller.signal.aborted) setDetails(new Map());
+      }
+    }
+
+    void load();
+    const timer = setInterval(() => void load(), REFRESH_MS);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, []);
+
+  return { stats, details, failed, updatedAt };
+}
