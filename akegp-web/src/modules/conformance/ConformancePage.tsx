@@ -1,11 +1,15 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./ConformancePage.css";
 
 type CodeFile = { path: string; language: string; kind?: string };
 type Dependency = { source: string; target: string };
 type CodeGraph = { files: CodeFile[]; dependencies: Dependency[] };
 type Node = { id: string; path: string; language: string; x: number; y: number; kind: string; members?: CodeFile[] };
+
+function initialScanKey(projectId: string) {
+	return `akegp.initial-scan.${projectId}`;
+}
 
 const colors: Record<string, string> = {
 	Package: "#13b99a",
@@ -68,10 +72,12 @@ function nodeKind(file: CodeFile): string {
 
 export function ConformancePage() {
 	const location = useLocation();
+	const { scanId } = useParams();
 	const didAutoScan = useRef(false);
-	const initialResult = location.state as { repositoryId?: string; graph?: CodeGraph } | null;
+	const initialResult = location.state as { projectId?: string; repositoryId?: string; repositoryUrl?: string; initialScanId?: string; graph?: CodeGraph } | null;
+	const projectId = initialResult?.projectId;
 	const [repositoryId, setRepositoryId] = useState(initialResult?.repositoryId ?? "akegp");
-	const [repositoryUrl, setRepositoryUrl] = useState("");
+	const [repositoryUrl, setRepositoryUrl] = useState(initialResult?.repositoryUrl ?? "");
 	const [graph, setGraph] = useState<CodeGraph>(initialResult?.graph ?? { files: [], dependencies: [] });
 	const [status, setStatus] = useState(initialResult?.graph ? "Scan complete" : "Idle");
 	const [loading, setLoading] = useState(false);
@@ -125,18 +131,41 @@ export function ConformancePage() {
 		try {
 			const response = await fetch("/api/conformance/graphs/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repositoryId: id, repositoryUrl: url }) });
 			if (!response.ok) throw new Error(await response.text());
-			const nextGraph = await response.json() as CodeGraph;
-			setGraph(nextGraph); setSelectedPath(""); setStatus("Scan complete"); setScanOpen(false);
+			const result = await response.json() as { scan: { scanId: string }; graph: CodeGraph };
+			setGraph(result.graph); setSelectedPath(""); setStatus("Scan complete"); setScanOpen(false);
+			if (projectId) window.localStorage.setItem(initialScanKey(projectId), result.scan.scanId);
 		} catch (error) { setStatus(error instanceof Error ? error.message : "The repository could not be imported."); }
 		finally { setLoading(false); }
 	}
 	function importRepository(event: FormEvent) { event.preventDefault(); void runScan(); }
 	useEffect(() => {
-		const scan = location.state as { repositoryId?: string; repositoryUrl?: string } | null;
-		if (didAutoScan.current || !scan?.repositoryUrl) return;
+		const scan = location.state as { projectId?: string; repositoryId?: string; repositoryUrl?: string; initialScanId?: string } | null;
+		if (didAutoScan.current || !scan?.repositoryUrl || scan.initialScanId) return;
 		didAutoScan.current = true;
 		void runScan(scan.repositoryId || "akegp", scan.repositoryUrl);
 	}, [location.state]);
+	useEffect(() => {
+		if (!projectId || initialResult?.graph || !initialResult?.initialScanId) return;
+		setLoading(true); setStatus("Loading initial scan...");
+		void fetch(`/api/conformance/graphs/${initialResult.initialScanId}`)
+			.then(async response => { if (!response.ok) throw new Error("The initial scan could not be loaded."); return response.json() as Promise<CodeGraph>; })
+			.then(savedGraph => { setGraph(savedGraph); setStatus("Initial scan loaded"); })
+			.catch(error => { window.localStorage.removeItem(initialScanKey(projectId)); setStatus(error instanceof Error ? error.message : "The initial scan could not be loaded."); })
+			.finally(() => setLoading(false));
+	}, [initialResult?.graph, initialResult?.initialScanId, projectId]);
+	useEffect(() => {
+		if (!scanId || initialResult?.graph) return;
+		setLoading(true);
+		setStatus("Loading saved scan...");
+		void fetch(`/api/conformance/graphs/${scanId}`)
+			.then(async response => {
+				if (!response.ok) throw new Error("The saved scan could not be loaded.");
+				return response.json() as Promise<CodeGraph>;
+			})
+			.then(savedGraph => { setGraph(savedGraph); setStatus("Scan loaded"); })
+			.catch(error => setStatus(error instanceof Error ? error.message : "The saved scan could not be loaded."))
+			.finally(() => setLoading(false));
+	}, [scanId]);
 
 	function exportGraph() {
 		const svg = document.querySelector<SVGSVGElement>(".dependency-canvas svg");
@@ -161,7 +190,7 @@ export function ConformancePage() {
 	];
 	const totalEdges = dependencyCount + packageEdges.filter(edge => byPath.has(edge.source) && byPath.has(edge.target)).length;
 	return <main className="graph-app">
-		<header className="graph-topbar"><div className="graph-search"><span>⌕</span><input aria-label="Search components" placeholder="Search components..." value={search} onChange={event => setSearch(event.target.value)} /></div><div className="topbar-actions"><span className="topbar-status">● {status}</span><span className="avatar">◈</span></div></header>
+				<header className="graph-topbar"><div className="graph-search"><span>⌕</span><input aria-label="Search components" placeholder="Search components..." value={search} onChange={event => setSearch(event.target.value)} /></div><div className="topbar-actions"><Link className="new-scan-button" to="/repository">+ New scan</Link><span className="topbar-status">● {status}</span><span className="avatar">◈</span></div></header>
 		<div className="graph-layout">
 			
 			<section className="graph-workspace"><div className="graph-toolbar"><div className="breadcrumbs"><Link className="graph-home-button" to="/">Home</Link><b>›</b><strong>Dependency Graphs</strong></div><div className="toolbar-controls"><div className="zoom-control"><button aria-label="Zoom out" onClick={() => setZoom(value => Math.max(.65, value - .1))}>−</button><button aria-label="Zoom in" onClick={() => setZoom(value => Math.min(1.5, value + .1))}>＋</button></div><select aria-label="Filter by language" value={language} onChange={event => setLanguage(event.target.value)}><option>All Languages</option>{languages.map(item => <option key={item}>{item}</option>)}</select><select aria-label="Filter by layer" value={layer} onChange={event => setLayer(event.target.value)}><option>All Layers</option><option>Packages</option><option>Files</option><option>Build</option></select><button className="export-button" onClick={exportGraph}>⇩ Export Graph</button><button className="scan-button" onClick={() => setScanOpen(value => !value)}>▶ Run Full Scan</button></div></div>

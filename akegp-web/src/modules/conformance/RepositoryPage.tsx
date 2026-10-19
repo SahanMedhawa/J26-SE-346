@@ -1,13 +1,16 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./WorkflowPages.css";
 
 type CodeGraph = { files: { path: string; language: string; kind?: string }[]; dependencies: { source: string; target: string }[] };
+type ScanResult = { scan: { scanId: string }; graph: CodeGraph };
 const availableLanguages = ["Java", "TypeScript", "JavaScript"];
 
 export function RepositoryPage() {
+	const location = useLocation();
 	const navigate = useNavigate();
-	const [repositoryUrl, setRepositoryUrl] = useState("");
+	const initialState = location.state as { projectId?: string; repositoryId?: string; repositoryUrl?: string; initialScanId?: string } | null;
+	const [repositoryUrl, setRepositoryUrl] = useState(initialState?.repositoryUrl ?? "");
 	const [languages, setLanguages] = useState(availableLanguages);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -29,10 +32,13 @@ export function RepositoryPage() {
 		} catch { setError("Enter a valid GitHub repository URL, such as https://github.com/owner/repository."); return; }
 		setError(""); setLoading(true);
 		try {
-			const response = await fetch("/api/conformance/graphs/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repositoryId: repository.toLowerCase(), repositoryUrl: `https://github.com/${owner}/${repository}`, languages }) });
+			const repositoryId = initialState?.projectId ?? initialState?.repositoryId ?? repository.toLowerCase();
+			const response = await fetch("/api/conformance/graphs/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ repositoryId, repositoryUrl: `https://github.com/${owner}/${repository}`, languages }) });
 			if (!response.ok) throw new Error(await response.text());
-			const graph = await response.json() as CodeGraph;
-			navigate("/conformance/graph", { state: { repositoryId: repository.toLowerCase(), graph } });
+			const result = await response.json() as ScanResult;
+			if (!result?.scan?.scanId || !result.graph) throw new Error("The conformance service needs to be restarted before scanning.");
+			if (initialState?.projectId) window.localStorage.setItem(`akegp.initial-scan.${initialState.projectId}`, result.scan.scanId);
+			navigate(`/conformance/graph/${result.scan.scanId}`, { state: { ...initialState, repositoryId, graph: result.graph } });
 		} catch (scanError) { setError(scanError instanceof Error ? scanError.message : "The repository could not be scanned."); }
 		finally { setLoading(false); }
 	}

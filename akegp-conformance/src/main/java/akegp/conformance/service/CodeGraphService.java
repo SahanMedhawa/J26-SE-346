@@ -1,11 +1,14 @@
 package akegp.conformance.service;
 
 import akegp.conformance.domain.CodeGraph;
+import akegp.conformance.domain.ConformanceScan;
+import akegp.conformance.domain.ConformanceScanResult;
 import akegp.conformance.extraction.RepositoryGraphExtractor;
 import akegp.conformance.github.GitHubRepositorySource;
 import akegp.conformance.repository.Neo4jCodeGraphRepository;
 import java.io.IOException;
 import java.util.Set;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,19 +23,22 @@ public class CodeGraphService {
     this.repository = repository;
   }
 
-  public CodeGraph importRepository(String repositoryId, String repositoryUrl) throws IOException, InterruptedException {
+  public ConformanceScanResult importRepository(String repositoryId, String repositoryUrl) throws IOException, InterruptedException {
     return importRepository(repositoryId, repositoryUrl, null);
   }
 
-  public CodeGraph importRepository(String repositoryId, String repositoryUrl, Set<String> languages) throws IOException, InterruptedException {
+  public ConformanceScanResult importRepository(String repositoryId, String repositoryUrl, Set<String> languages) throws IOException, InterruptedException {
     try (GitHubRepositorySource.RepositoryWorkspace workspace = source.download(repositoryUrl)) {
       CodeGraph graph = languages == null ? extractor.extract(workspace.path()) : extractor.extract(workspace.path(), languages);
-      repository.replace(repositoryId, graph);
-      return graph;
+      return new ConformanceScanResult(repository.save(repositoryId, repositoryUrl, graph), graph);
     }
   }
 
-  public CodeGraph find(String repositoryId) {
-    return repository.find(repositoryId);
+  public List<ConformanceScan> listScans() {
+    return repository.listScans();
+  }
+
+  public CodeGraph find(String scanId) {
+    return repository.find(scanId);
   }
 }
