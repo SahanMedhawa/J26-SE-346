@@ -118,7 +118,8 @@ test("shows ADR-rule fidelity status and explanation on the validation results p
     assert.match(h.text, /Loading ADR/); await h.flush();
     assert.match(h.text, new RegExp(status));
     assert.match(h.text, new RegExp(`Fidelity outcome ${status}`));
-    assert.match(h.text, /must not directly access/);
+    assert.match(h.text, /ADR-001/);
+    assert.doesNotMatch(h.text, /PP1|must not directly access/);
     h.unmount();
   }
   const h = mount("AdrFidelityResult", { adrFidelity: async () => { throw new Error("Fidelity unavailable"); } });
@@ -268,9 +269,25 @@ test("existing validation POST refreshes both persisted panels and preserves UUI
     assert.equal(register.refresh, 2);
     h.click("Edit Rule");
     const destination = h.calls.find(call => call.method === "navigate").args[0];
-    assert.ok(destination.includes(`projectId=${rule.projectId}`)); assert.ok(destination.includes(`editRule=${rule.id}`)); assert.ok(destination.includes("returnTo=validation"));
+    assert.ok(destination.startsWith(`/projects/${rule.projectId}/rules/architecture-rules?`)); assert.ok(destination.includes(`editRule=${rule.id}`)); assert.ok(destination.includes("returnTo=validation"));
     listeners.get("visibilitychange")?.(); await h.flush(); assert.equal(h.calls.filter(call => call.method === "list").length, 1); h.unmount();
   } finally { global.window = previousWindow; global.document = previousDocument; }
+});
+
+test("validation derives each project's style and scopes validation, fidelity and review to that project", async () => {
+  for (const [id, style] of [["healthmate-uuid", "MICROSERVICES"], ["petclinic-uuid", "LAYERED"]]) {
+    const savedRule = { ...rule, id: `${id}-rule`, projectId: id };
+    const h = mount("ProjectValidation", { list: async () => [savedRule], get: async () => savedRule }, {
+      project: { id, architectureStyles: [style] }, initialRuleId: savedRule.id,
+    });
+    await h.flush(); h.click("Run Validation"); await h.flush();
+    assert.deepEqual(h.calls.find(c => c.method === "list").args, [id]);
+    assert.deepEqual(h.calls.find(c => c.method === "validateStructure").args, [id, savedRule.id, { architectureStyle: style }]);
+    for (const child of [h.children.StoredValidationResult, h.children.AdrFidelityResult, h.children.ArchitectReviewPanel, h.children.ArchitectConfirmationRegister]) {
+      assert.equal(find(h.tree, n => n.type === child).props.projectId, id);
+    }
+    h.unmount();
+  }
 });
 
 test("window focus and visibility changes do not automatically reload validation rules", async () => {

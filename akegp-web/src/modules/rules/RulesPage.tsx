@@ -1,18 +1,18 @@
 import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import { ADR, ADRInput, ADRStatus, ApiClientError, Project, adrsApi, projectsApi } from "../../shared/api/client";
 import { useSelectedProject } from "./rulesWorkspace";
 
 type RuleModule = {
   label: string;
-  path: "/rules/adrs" | "/rules/architecture-rules" | "/rules/validation";
+  path: "adrs" | "architecture-rules" | "validation";
   icon: "adrs" | "rules" | "validation";
 };
 
 const ruleModules: RuleModule[] = [
-  { label: "ADR Management", path: "/rules/adrs", icon: "adrs" },
-  { label: "Architecture Rule Engineering", path: "/rules/architecture-rules", icon: "rules" },
-  { label: "Rule Validation", path: "/rules/validation", icon: "validation" },
+  { label: "ADR Management", path: "adrs", icon: "adrs" },
+  { label: "Architecture Rule Engineering", path: "architecture-rules", icon: "rules" },
+  { label: "Rule Validation", path: "validation", icon: "validation" },
 ];
 
 function ModuleIcon({ type }: { type: RuleModule["icon"] }) {
@@ -40,10 +40,8 @@ function WorkspaceHeader() {
 const adrStatuses: ADRStatus[] = ["PROPOSED", "ACCEPTED", "DEPRECATED", "SUPERSEDED"];
 
 export function ADRManagementPage() {
-      const { selectedProject: workspaceProject, setSelectedProject } = useSelectedProject();
-      const initialProjectId = useRef(workspaceProject?.id);
-      const [projects, setProjects] = useState<Project[]>([]);
-      const [selectedProjectId, setSelectedProjectId] = useState("");
+      const { selectedProject } = useSelectedProject();
+      const selectedProjectId = selectedProject?.id ?? "";
       const [adrs, setAdrs] = useState<ADR[]>([]);
       const [search, setSearch] = useState("");
       const [status, setStatus] = useState<ADRStatus | "all">("all");
@@ -56,44 +54,25 @@ export function ADRManagementPage() {
 
       useEffect(() => {
         let active = true;
-        void projectsApi.list().then((loaded) => {
-          if (!active) return;
-          setProjects(loaded);
-          if (loaded.length) {
-            const project = loaded.find((item) => item.id === initialProjectId.current) ?? loaded[0];
-            setSelectedProjectId(project.id);
-            setSelectedProject(project);
-          }
-        }).catch((error) => { if (active) setNotice({ text: getErrorMessage(error), success: false }); });
-        return () => { active = false; };
-      }, [setSelectedProject]);
-
-      useEffect(() => {
-        if (!selectedProjectId) {
-          setAdrs([]);
-          setLoadState("ready");
-          return;
-        }
-        const project = projects.find((item) => item.id === selectedProjectId);
-        if (project) setSelectedProject(project);
+        if (!selectedProjectId) return;
         setLoadState("loading");
         void adrsApi.list(selectedProjectId, { status, search }).then((loaded) => {
+          if (!active) return;
           setAdrs(loaded);
           setLoadState("ready");
         }).catch((error) => {
+          if (!active) return;
           setLoadState("error");
           setNotice({ text: getErrorMessage(error), success: false });
         });
-      }, [projects, search, selectedProjectId, setSelectedProject, status]);
-
-      const activeProjects = projects.filter((project) => project.status === "ACTIVE");
-      const selectedProject = projects.find((project) => project.id === selectedProjectId);
+        return () => { active = false; };
+      }, [search, selectedProjectId, status]);
 
       async function openDetails(adr: ADR) {
         setSelectedADR(adr);
         setModal("details");
         try {
-          setSelectedADR(await adrsApi.get(adr.projectId, adr.id));
+          setSelectedADR(await adrsApi.get(selectedProjectId, adr.id));
         } catch (error) {
           setModal(null);
           setNotice({ text: getErrorMessage(error), success: false });
@@ -118,7 +97,7 @@ export function ADRManagementPage() {
         setNotice(null);
         try {
           if (editing && selectedADR) {
-            await adrsApi.update(selectedADR.projectId, selectedADR.id, { ...input, version: selectedADR.version });
+            await adrsApi.update(selectedProjectId, selectedADR.id, { ...input, version: selectedADR.version });
             setNotice({ text: "ADR updated successfully.", success: true });
           } else {
             const created = await adrsApi.create(selectedProjectId, input);
@@ -143,7 +122,7 @@ export function ADRManagementPage() {
         if (!confirmDelete) return;
         setActionState(true);
         try {
-          await adrsApi.remove(confirmDelete.projectId, confirmDelete.id);
+          await adrsApi.remove(selectedProjectId, confirmDelete.id);
           setConfirmDelete(null);
           setNotice({ text: "ADR deleted successfully.", success: true });
           await reloadADRs();
@@ -155,11 +134,6 @@ export function ADRManagementPage() {
       }
 
       function startCreate() {
-        const project = activeProjects.find((item) => item.id === selectedProjectId) ?? activeProjects[0];
-        if (project) {
-          setSelectedProjectId(project.id);
-          setSelectedProject(project);
-        }
         setSelectedADR(null);
         setNotice(null);
         setModal("create");
@@ -168,12 +142,11 @@ export function ADRManagementPage() {
       return <section className="rules-content adr-content">
         <div className="adr-intro">
           <div><p className="content-kicker">Architecture decisions</p><h2>ADR Management</h2><p className="projects-description">Capture decisions, context, and architectural consequences.</p></div>
-          <button className="primary-button" type="button" disabled={!activeProjects.length} onClick={startCreate}><span aria-hidden="true">+</span> Create ADR</button>
+          <button className="primary-button" type="button" disabled={selectedProject?.status !== "ACTIVE"} onClick={startCreate}><span aria-hidden="true">+</span> Create ADR</button>
         </div>
         <div className="adr-controls">
           <label className="search-field"><span className="search-icon" aria-hidden="true">/</span><span className="visually-hidden">Search ADRs</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ADR ID, title, or decision..." /></label>
           <DarkSelect ariaLabel="Filter ADRs by status" value={status} onChange={(value) => setStatus(value as ADRStatus | "all")} options={[{ value: "all", label: "All statuses" }, ...adrStatuses.map((value) => ({ value, label: formatADRStatus(value) }))]} />
-          <div className="adr-project-select"><span>Project</span><DarkSelect ariaLabel="Select project" value={selectedProjectId} onChange={setSelectedProjectId} options={[{ value: "", label: "Select project" }, ...projects.map((project) => ({ value: project.id, label: `${project.name}${project.status === "INACTIVE" ? " (Inactive)" : ""}` }))]} /></div>
         </div>
         {notice && <p className={`form-notice ${notice.success ? "success-notice" : "error-notice"}`} role="alert">{notice.text}</p>}
         <div className="projects-table-wrap adr-table-wrap"><table className="projects-table adr-table"><caption className="visually-hidden">Architecture decision records</caption><thead><tr><th>ADR</th><th>Status</th><th>Version</th><th>Linked Rules</th><th>Actions</th></tr></thead><tbody>
@@ -181,9 +154,9 @@ export function ADRManagementPage() {
             <td><strong className="adr-id">{adr.adrId}</strong><small>{adr.title}</small></td><td><span className={`adr-status ${adr.status.toLowerCase()}`}>{formatADRStatus(adr.status)}</span></td><td>v{adr.version}</td><td>{adr.linkedRuleCount ?? "—"}</td><td><div className="row-actions adr-actions"><button className="details-action" type="button" onClick={() => void openDetails(adr)}>Open</button><button className="edit-action" type="button" onClick={() => { setSelectedADR(adr); setModal("edit"); }}><EditIcon /> Edit</button><button className="danger-button" type="button" onClick={() => setConfirmDelete(adr)}><TrashIcon /> Delete</button></div></td>
           </tr>)}
         </tbody></table></div>
-        {modal === "create" && <ADRModal title="Create ADR" onClose={() => setModal(null)}><ADRForm projects={activeProjects} projectId={selectedProjectId} onProjectChange={setSelectedProjectId} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, false)} busy={actionState} /></ADRModal>}
-        {modal === "edit" && selectedADR && <ADRModal title="Edit ADR" identifier={selectedADR.adrId} onClose={() => setModal(null)}><ADRForm adr={selectedADR} projects={projects} projectId={selectedADR.projectId} onProjectChange={setSelectedProjectId} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, true)} busy={actionState} /></ADRModal>}
-        {modal === "details" && selectedADR && <ADRDetails adr={selectedADR} project={projects.find((project) => project.id === selectedADR.projectId)} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
+        {modal === "create" && <ADRModal title="Create ADR" onClose={() => setModal(null)}><ADRForm project={selectedProject} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, false)} busy={actionState} /></ADRModal>}
+        {modal === "edit" && selectedADR && <ADRModal title="Edit ADR" identifier={selectedADR.adrId} onClose={() => setModal(null)}><ADRForm adr={selectedADR} project={selectedProject} onCancel={() => setModal(null)} onSubmit={(event) => void submitADR(event, true)} busy={actionState} /></ADRModal>}
+        {modal === "details" && selectedADR && <ADRDetails adr={selectedADR} project={selectedProject ?? undefined} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
         {confirmDelete && <div className="modal-backdrop"><div className="project-modal confirmation-modal" role="alertdialog" aria-modal="true"><div className="modal-header"><h2>Delete ADR?</h2><button className="modal-close" type="button" onClick={() => setConfirmDelete(null)} aria-label="Close confirmation">x</button></div><div className="confirmation-content"><p>Are you sure you want to delete <strong>{confirmDelete.adrId}</strong> — {confirmDelete.title}?</p></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" type="button" disabled={actionState} onClick={() => void deleteADR()}>{actionState ? "Deleting..." : "Confirm Delete"}</button></div></div></div>}
       </section>;
     }
@@ -239,12 +212,12 @@ export function ADRManagementPage() {
       return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="project-modal adr-modal record-form-modal" role="dialog" aria-modal="true"><div className="modal-header"><h2 className="record-modal-title">{title}{identifier && <span className="record-id-badge">{identifier}</span>}</h2><button className="modal-close" type="button" onClick={onClose} aria-label="Close modal">x</button></div>{children}</div></div>;
     }
 
-    function ADRForm({ adr, projects, projectId, onProjectChange, onCancel, onSubmit, busy }: { adr?: ADR; projects: Project[]; projectId: string; onProjectChange: (id: string) => void; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean }) {
+    function ADRForm({ adr, project, onCancel, onSubmit, busy }: { adr?: ADR; project: Project | null; onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; busy: boolean }) {
       return <form onSubmit={onSubmit} className="adr-form">
         <div className="adr-form-body">
           <div className="adr-form-grid">
             <label className="record-form-full-width">Title *<input name="title" required defaultValue={adr?.title} /></label>
-            <label>Project *<DarkSelect ariaLabel="Select project for ADR" value={projectId} onChange={onProjectChange} options={projects.map((project) => ({ value: project.id, label: project.name }))} /><input type="hidden" name="projectId" value={projectId} /></label>
+            <label>Project<input readOnly value={project?.name ?? ""} /></label>
             <label>Status *<select name="status" required defaultValue={adr?.status ?? "PROPOSED"}>{adrStatuses.map((value) => <option key={value} value={value}>{formatADRStatus(value)}</option>)}</select></label>
           </div>
           <label>Context *<textarea name="context" required minLength={10} maxLength={5000} defaultValue={adr?.context} /></label>
@@ -298,7 +271,38 @@ export function ComingSoonPage({ title, description }: { title: string; descript
 }
 
 export function RulesPage() {
-  const { selectedProject } = useSelectedProject();
+  const { selectedProject, setSelectedProject } = useSelectedProject();
+  const { projectId } = useParams();
+  const location = useLocation();
+  const [loadedId, setLoadedId] = useState("");
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoadedId("");
+    setError("");
+    if (!projectId) return;
+    void projectsApi.get(projectId).then((project) => {
+      if (!active) return;
+      if (!project || project.id !== projectId) throw new Error("The requested project could not be found.");
+      setSelectedProject(project);
+      setLoadedId(projectId);
+    }).catch((reason) => {
+      if (active) setError(getErrorMessage(reason));
+    });
+    return () => { active = false; };
+  }, [projectId, retry, setSelectedProject]);
+
+  // Keep old bookmarks with an explicit ID or existing selection; never choose a list fallback.
+  if (!projectId) {
+    const legacyId = new URLSearchParams(location.search).get("projectId") || selectedProject?.id;
+    if (legacyId) return <Navigate replace to={`/projects/${encodeURIComponent(legacyId)}${location.pathname}${location.search}`} />;
+    return <section className="rules-content"><p role="alert">Select a project from the Project Library to open Architecture Rules.</p><Link to="/projects">Open Project Library</Link></section>;
+  }
+  if (error) return <section className="rules-content"><p className="form-notice error-notice" role="alert">Unable to open this project: {error}</p><button type="button" onClick={() => setRetry((value) => value + 1)}>Retry</button> <Link to="/projects">Open Project Library</Link></section>;
+  if (loadedId !== projectId || selectedProject?.id !== projectId) return <section className="rules-content"><p role="status">Loading project workspace...</p></section>;
+  const basePath = `/projects/${encodeURIComponent(projectId)}/rules`;
 
   return (
     <div className="rules-workspace">
@@ -311,7 +315,7 @@ export function RulesPage() {
               className={({ isActive }) => `module-link${isActive ? " active" : ""}`}
               end
               key={module.path}
-              to={module.path}
+              to={`${basePath}/${module.path}`}
             >
               <span className="module-icon"><ModuleIcon type={module.icon} /></span>
               <span>{module.label}</span>
@@ -321,7 +325,8 @@ export function RulesPage() {
         </nav>
         <div className="selected-project">
           <span className="selected-project-label">Selected project</span>
-          <strong>{selectedProject?.name ?? "No project selected"}</strong>
+          <strong>{selectedProject.name}</strong>
+          <Link to={`/projects/${encodeURIComponent(projectId)}`}>Project workspace</Link>
         </div>
         <div className="sidebar-footer">
           <span className="status-dot" /> AKEGP / PLATFORM
@@ -329,7 +334,7 @@ export function RulesPage() {
       </aside>
       <div className="rules-main">
         <WorkspaceHeader />
-        <Outlet />
+        <Outlet key={projectId} />
       </div>
     </div>
   );

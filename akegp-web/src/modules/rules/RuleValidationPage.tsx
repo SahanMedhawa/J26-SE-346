@@ -1,54 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ApiClientError, ArchitectureRule, Project, ValidationArchitectureStyle, projectsApi, rulesApi } from "../../shared/api/client";
+import { ApiClientError, ArchitectureRule, Project, ValidationArchitectureStyle, rulesApi } from "../../shared/api/client";
 import { DarkSelect } from "./ArchitectureRulesPage";
 import { useSelectedProject } from "./rulesWorkspace";
 import { AdrFidelityResult, ArchitectConfirmationRegister, ArchitectReviewPanel, StoredValidationResult } from "./RuleAssurance";
 
 export function RuleValidationPage() {
-  const { selectedProject, setSelectedProject } = useSelectedProject();
+  const { selectedProject: project } = useSelectedProject();
   const [params] = useSearchParams();
-  const initialProjectId = useRef(params.get("projectId") ?? selectedProject?.id);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [error, setError] = useState("");
-  const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    setState("loading");
-    setError("");
-    void projectsApi.list().then((loaded) => {
-      if (!active) return;
-      setProjects(loaded);
-      const project = loaded.find((item) => item.id === initialProjectId.current) ?? loaded[0];
-      if (project) setSelectedProject(project);
-      setState("ready");
-    }).catch((reason) => {
-      if (!active) return;
-      setError(errorMessage(reason));
-      setState("error");
-    });
-    return () => { active = false; };
-  }, [reload, setSelectedProject]);
-
-  const project = projects.find((item) => item.id === selectedProject?.id);
+  const basePath = `/projects/${encodeURIComponent(project?.id ?? "")}/rules`;
   return <section className="rules-content rule-validation-content">
-    <nav className="validation-breadcrumb" aria-label="Breadcrumb"><Link to="/rules">Component 01</Link><span aria-hidden="true">/</span><span aria-current="page">Rule Validation</span></nav>
+    <nav className="validation-breadcrumb" aria-label="Breadcrumb"><Link to={basePath}>Component 01</Link><span aria-hidden="true">/</span><span aria-current="page">Rule Validation</span></nav>
     <div className="projects-intro"><div><p className="content-kicker">Architecture rule structure</p><h2>Rule Validation</h2><p className="projects-description">Validate existing architecture rule definitions against supported architectural structures.</p></div></div>
-    <div className="validation-project-select">
-      <span id="validation-project-label">Architecture Project</span>
-      <fieldset disabled={state !== "ready" || !projects.length} aria-labelledby="validation-project-label">
-        <DarkSelect ariaLabel="Architecture Project" value={project?.id ?? ""} options={projects.length ? projects.map((item) => ({ value: item.id, label: `${item.name}${item.status === "INACTIVE" ? " (Inactive)" : ""}` })) : [{ value: "", label: state === "loading" ? "Loading projects..." : "No projects available" }]} onChange={(id) => {
-          const next = projects.find((item) => item.id === id);
-          if (next) { initialProjectId.current = id; setSelectedProject(next); }
-        }} />
-      </fieldset>
-    </div>
-    {state === "loading" && <p className="validation-hint" role="status">Loading architecture projects...</p>}
-    {state === "error" && <div className="form-notice error-notice" role="alert">Unable to load architecture projects: {error} <button type="button" onClick={() => setReload((value) => value + 1)}>Retry</button></div>}
-    {state === "ready" && !projects.length && <p className="validation-hint">No architecture projects are registered. <Link to="/rules/projects">Register a project</Link> to get started.</p>}
-    {state === "ready" && project && <ProjectValidation key={`${project.id}:${project.architectureStyles.join(",")}`} project={project} initialRuleId={params.get("projectId") === project.id ? params.get("rule") ?? "" : ""} />}
+    {project && <ProjectValidation key={`${project.id}:${project.architectureStyles.join(",")}`} project={project} initialRuleId={params.get("rule") ?? ""} />}
   </section>;
 }
 
@@ -142,7 +106,7 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
     </fieldset>
     {loading && <p className="validation-hint" role="status">Loading architecture rules...</p>}
     {loadError && <div className="form-notice error-notice" role="alert">Unable to load architecture rules: {loadError} <button type="button" onClick={refreshRules}>Retry</button></div>}
-    {!loading && !loadError && !rules.length && <p className="validation-hint">This project has no saved architecture rules. <Link to="/rules/architecture-rules">Create an architecture rule</Link> before running validation.</p>}
+    {!loading && !loadError && !rules.length && <p className="validation-hint">This project has no saved architecture rules. <Link to={`/projects/${encodeURIComponent(project.id)}/rules/architecture-rules`}>Create an architecture rule</Link> before running validation.</p>}
     {styles.length > 1 && !style && <p className="validation-hint">This project supports multiple styles. Choose a style before running validation.</p>}
     <div className="validation-panels">
       <section className="validation-panel" aria-labelledby="selected-rule-title">
@@ -160,7 +124,7 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
         <div className="validation-actions">
           <button className="primary-button" type="button" disabled={!rule || !style || loading || busy || !!loadError} onClick={() => void runValidation()}>{busy ? <span className="loading-spinner" aria-hidden="true" /> : <svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 4 12 8-12 8z" /></svg>}{busy ? "Validating..." : "Run Validation"}</button>
           <button className="secondary-button" type="button" disabled={!rule || loading || busy} onClick={() => {
-            if (rule) navigate(`/rules/architecture-rules?${new URLSearchParams({ projectId: project.id, editRule: rule.id, returnTo: "validation" })}`);
+            if (rule) navigate(`/projects/${encodeURIComponent(project.id)}/rules/architecture-rules?${new URLSearchParams({ editRule: rule.id, returnTo: "validation" })}`);
           }}><svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.75 4.75L8 20l11.5-11.5a2.12 2.12 0 0 0-3-3zM14.5 7.5l2 2" /></svg>Edit Rule</button>
         </div>
       </section>

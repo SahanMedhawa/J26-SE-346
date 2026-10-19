@@ -16,7 +16,7 @@ import "../styles.css";
 
 export function App() {
 	const location = useLocation();
-	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || location.pathname.startsWith("/projects/");
+	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || /^\/projects\/[^/]+\/?$/.test(location.pathname);
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className="topbar">
 			<Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>
@@ -33,6 +33,13 @@ export function App() {
 			<Route path="/rules" element={<RulesPage/>}>
 				<Route index element={<Navigate replace to="architecture-rules" />} />
 				<Route path="projects" element={<Navigate replace to="/projects" />}/>
+				<Route path="adrs" element={<ADRManagementPage />} />
+				<Route path="architecture-rules" element={<ArchitectureRulesPage />} />
+				<Route path="validation" element={<RuleValidationPage />} />
+				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
+			</Route>
+			<Route path="/projects/:projectId/rules" element={<RulesPage/>}>
+				<Route index element={<Navigate replace to="architecture-rules" />} />
 				<Route path="adrs" element={<ADRManagementPage />} />
 				<Route path="architecture-rules" element={<ArchitectureRulesPage />} />
 				<Route path="validation" element={<RuleValidationPage />} />
