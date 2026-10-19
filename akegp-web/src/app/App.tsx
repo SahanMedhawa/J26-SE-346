@@ -12,14 +12,16 @@ import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
 import { RuleValidationPage } from "../modules/rules/RuleValidationPage";
 import { SelectedProjectProvider } from "../shared/projects/SelectedProject";
 import { ArchitectureProjects } from "../shared/projects/ArchitectureProjects";
+import { Brand } from "../shared/Brand";
 import "../styles.css";
 
 export function App() {
 	const location = useLocation();
+	const componentOnePage = /^\/(?:rules|projects\/[^/]+\/rules)(?:\/|$)/.test(location.pathname);
 	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || /^\/projects\/[^/]+\/?$/.test(location.pathname);
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className="topbar">
-			<Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>
+			{componentOnePage ? <Brand /> : <Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>}
 			<span className="topbar-note">ARCHITECTURE KNOWLEDGE SYSTEM</span>
 			<Link className="app-settings-link" to="/settings" aria-label="Project settings" title="Project settings">&#9881;</Link>
 		</header>}

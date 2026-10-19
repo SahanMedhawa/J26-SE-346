@@ -1,0 +1,4 @@
+/* Match the Home header's typography outside its workflow container. */
+.akegp-brand {
+  font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
