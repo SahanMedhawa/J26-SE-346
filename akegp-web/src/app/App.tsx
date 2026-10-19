@@ -7,6 +7,7 @@ import { EnforcementPage } from "../modules/enforcement/EnforcementPage";
 import { HomePage } from "../modules/conformance/HomePage";
 import { CreateProjectPage } from "../modules/conformance/CreateProjectPage";
 import { ProjectDashboardPage } from "../modules/conformance/ProjectDashboardPage";
+import { ScanHistoryPage } from "../modules/conformance/ScanHistoryPage";
 import { ADRManagementPage, RulesPage } from "../modules/rules/RulesPage";
 import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
 import { RuleValidationPage } from "../modules/rules/RuleValidationPage";
@@ -16,7 +17,7 @@ import "../styles.css";
 
 export function App() {
 	const location = useLocation();
-	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || /^\/projects\/[^/]+\/?$/.test(location.pathname);
+	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || location.pathname.startsWith("/projects/") || location.pathname.startsWith("/conformance/graph/");
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className="topbar">
 			<Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>
@@ -46,8 +47,9 @@ export function App() {
 				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
 			</Route>
 			<Route path="/settings" element={<SettingsPage/>}/>
-			<Route path="/conformance" element={<RepositoryPage/>}/>
+			<Route path="/conformance" element={<ScanHistoryPage/>}/>
 			<Route path="/conformance/graph" element={<ConformancePage/>}/>
+			<Route path="/conformance/graph/:scanId" element={<ConformancePage/>}/>
 			<Route path="/enforcement" element={<EnforcementPage/>}/>
 			<Route path="/analytics/*" element={<AnalyticsPage/>}/>
 			<Route path="*" element={<HomePage/>}/>
