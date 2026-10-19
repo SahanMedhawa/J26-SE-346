@@ -19,6 +19,16 @@ a { color: inherit; text-decoration: none; }
 .brand-name { font-size: 14px; font-weight: 800; letter-spacing: .05em; }
 .brand-name span { color: #8b949e; font-weight: 500; }
 .topbar-note { color: #8b949e; font-family: "DM Mono", monospace; font-size: 11px; letter-spacing: .04em; }
+.component-one-header-actions { align-items: center; display: flex; gap: 16px; }
+.project-dashboard-link { color: #c9d1d9; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.project-dashboard-link:hover { color: #3fb950; }
+@media (max-width: 900px) {
+  .component-one-topbar .topbar-note { display: none; }
+}
+@media (max-width: 600px) {
+  .topbar.component-one-topbar { flex-wrap: wrap; gap: 12px; height: auto; min-height: 64px; padding-top: 12px; padding-bottom: 12px; }
+  .component-one-header-actions { margin-left: auto; }
+}
 
 .home-page { margin: 0 auto; max-width: 1240px; padding: 88px 32px 96px; }
 .hero { max-width: 760px; }
