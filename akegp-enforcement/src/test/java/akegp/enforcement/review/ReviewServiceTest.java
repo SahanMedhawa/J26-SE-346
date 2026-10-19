@@ -55,26 +55,12 @@ class ReviewServiceTest {
     assertEquals(StatusState.FAILURE, k.github.last().state());
   }
 
-  @Test void applyFixStaysHeldWhileRescanStillFindsViolations() {
+  @Test void applyFixIsNeverDecidedFromStoredData() {
+    // A fix must be verified against the pull request on GitHub (FixVerificationService); stored data cannot prove it.
     Kit k = heldKit();
-    PipelineRun r = k.review.decide("o/r", 1, "apply_fix", "k", null, null);
-    assertEquals(RunState.HELD, r.getState());
+    assertEquals(400, statusOf(() -> k.review.decide("o/r", 1, "apply_fix", "k", null, null)));
+    assertEquals(RunState.HELD, k.repository.latestRun("o/r", 1).orElseThrow().getState());
     assertEquals(StatusState.PENDING, k.github.last().state());
-  }
-
-  @Test void applyFixReleasesThePrWhenRescanIsClean() {
-    Kit k = heldKit();
-    k.scanner.behaviour = req -> new ScanReport(List.of());
-    PipelineRun r = k.review.decide("o/r", 1, "apply_fix", "k", null, null);
-    assertEquals(RunState.PASSED, r.getState());
-    assertTrue(r.getViolations().isEmpty());
-    assertEquals(StatusState.SUCCESS, k.github.last().state());
-  }
-
-  @Test void applyFixStaysHeldWhenRescanIsUnavailable() {
-    Kit k = heldKit();
-    k.scanner.behaviour = req -> { throw new IllegalStateException("down"); };
-    assertEquals(RunState.HELD, k.review.decide("o/r", 1, "apply_fix", "k", null, null).getState());
   }
 
   @Test void cannotDecideOnAPrThatIsNotHeldOrDoesNotExist() {

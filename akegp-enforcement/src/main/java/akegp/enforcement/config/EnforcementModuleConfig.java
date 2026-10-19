@@ -11,6 +11,10 @@ import akegp.enforcement.policy.ProjectLinkResolver;
 import akegp.enforcement.repository.EnforcementRepository;
 import akegp.enforcement.repository.InMemoryEnforcementRepository;
 import akegp.enforcement.repository.JdbcEnforcementRepository;
+import akegp.enforcement.github.HttpPullRequestSource;
+import akegp.enforcement.github.NoPullRequestSource;
+import akegp.enforcement.github.PullRequestSource;
+import akegp.enforcement.review.FixVerificationService;
 import akegp.enforcement.review.ReviewService;
 import akegp.enforcement.service.ChangeClassifier;
 import akegp.enforcement.service.DashboardStatsService;
@@ -97,6 +101,19 @@ public class EnforcementModuleConfig {
   public EnforcementService enforcementService(EnforcementRepository repository, ChangeClassifier classifier,
       ProjectLinkResolver links, ConformanceScanner scanner, RunStatusPublisher status) {
     return new EnforcementService(repository, classifier, links, scanner, status);
+  }
+
+  @Bean
+  public PullRequestSource pullRequestSource(EnforcementProperties props) {
+    var g = props.getGithub();
+    if (g.getToken() == null || g.getToken().isBlank()) return new NoPullRequestSource();
+    return new HttpPullRequestSource(g.getApiUrl(), g.getToken());
+  }
+
+  @Bean
+  public FixVerificationService fixVerificationService(EnforcementRepository repository, PullRequestSource source,
+                                                       EnforcementService enforcement) {
+    return new FixVerificationService(repository, source, enforcement);
   }
 
   @Bean
