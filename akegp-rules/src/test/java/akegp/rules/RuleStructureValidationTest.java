@@ -42,8 +42,9 @@ class RuleStructureValidationTest {
     var evidence = new RuleEvidenceService(projects, rules, adrs,
         new ImplementationMappingControllerTest.MemoryMappings(rules), assurance);
     var stored = new StoredStructuralValidationService(service, evidence, assurance, catalogue);
+    var fidelity = new AdrRuleFidelityService(evidence);
     mvc = MockMvcBuilders.standaloneSetup(
-        new RuleStructureValidationController(stored, catalogue),
+        new RuleStructureValidationController(stored, fidelity, catalogue),
         new RuleController(new RuleServiceImpl(rules, projects, adrs, new TestReadableIdRepository())))
         .setControllerAdvice(new ProjectRegistrationExceptionHandler()).build();
     register(Set.of(ArchitectureStyle.MICROSERVICES));

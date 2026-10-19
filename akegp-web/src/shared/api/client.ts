@@ -91,6 +91,15 @@ export type ImplementationMappings = ImplementationMappingsInput & { ruleUuid: s
 export type ValidationArchitectureStyle = Exclude<ArchitectureStyle, "MICROSERVICES_AND_LAYERED">;
 export type ValidateStructureRequest = { architectureStyle?: ValidationArchitectureStyle };
 export type StructuralValidationStatus = "NOT_VALIDATED" | "SUPPORTED" | "UNSUPPORTED";
+export type AdrRuleFidelityStatus = "MATCH" | "MISMATCH" | "REVIEW_REQUIRED";
+export type AdrRuleFidelity = {
+  ruleUuid: string;
+  ruleId: string;
+  adrUuid: string | null;
+  adrDisplayId: string | null;
+  status: AdrRuleFidelityStatus;
+  explanation: string;
+};
 export type StoredStructuralValidation = {
   ruleUuid: string;
   status: StructuralValidationStatus;
@@ -244,6 +253,7 @@ export const adrsApi = {
 
 export const rulesApi = {
   storedStructuralValidation: (projectId: string, ruleUuid: string) => request<StoredStructuralValidation>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/structural-validation`),
+  adrFidelity: (projectId: string, ruleUuid: string) => request<AdrRuleFidelity>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/adr-fidelity`),
   architectReview: (projectId: string, ruleUuid: string) => request<ArchitectReviewWorkspace>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review`),
   architectReviewHistory: (projectId: string, ruleUuid: string) => request<ArchitectReviewHistoryEntry[]>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review/history`),
   submitArchitectReview: (projectId: string, ruleUuid: string, input: ArchitectReviewInput) => request<ArchitectReviewWorkspace>(`/api/rules/projects/${projectId}/rules/${ruleUuid}/architect-review`, {

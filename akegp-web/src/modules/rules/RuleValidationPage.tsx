@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiClientError, ArchitectureRule, Project, ValidationArchitectureStyle, projectsApi, rulesApi } from "../../shared/api/client";
 import { DarkSelect } from "./ArchitectureRulesPage";
 import { useSelectedProject } from "./rulesWorkspace";
-import { ArchitectConfirmationRegister, ArchitectReviewPanel, StoredValidationResult } from "./RuleAssurance";
+import { AdrFidelityResult, ArchitectConfirmationRegister, ArchitectReviewPanel, StoredValidationResult } from "./RuleAssurance";
 
 export function RuleValidationPage() {
   const { selectedProject, setSelectedProject } = useSelectedProject();
@@ -168,7 +168,10 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
         <h3 id="validation-results-title">Validation Results</h3>
         <div aria-live="polite" aria-atomic="true">
           {validationError && <div className="form-notice error-notice" role="alert"><strong>Unable to validate rule structure</strong><p>{validationError}</p></div>}
-          {rule ? <StoredValidationResult key={rule.id} projectId={project.id} ruleUuid={rule.id} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} /> : <p className="validation-placeholder">Select an architecture rule to view its persisted validation result.</p>}
+          {rule ? <>
+            <StoredValidationResult key={`structural-${rule.id}`} projectId={project.id} ruleUuid={rule.id} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} />
+            <AdrFidelityResult key={`fidelity-${rule.id}`} projectId={project.id} ruleUuid={rule.id} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} />
+          </> : <p className="validation-placeholder">Select an architecture rule to view its persisted validation result.</p>}
         </div>
       </section>
     </div>

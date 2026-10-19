@@ -60,7 +60,8 @@ class RuleAssuranceControllerTest {
     validation = new StoredStructuralValidationService(new RuleStructureValidationService(
         ruleRepository, projects, adrs, factory.getValidator(), catalogue), evidence, assurance, catalogue);
     reviews = new ArchitectReviewService(evidence, validation, assurance);
-    mvc = MockMvcBuilders.standaloneSetup(new RuleStructureValidationController(validation, catalogue),
+    mvc = MockMvcBuilders.standaloneSetup(
+        new RuleStructureValidationController(validation, new AdrRuleFidelityService(evidence), catalogue),
         new ArchitectReviewController(reviews), new RuleController(rules), new ImplementationMappingController(mappings))
         .setControllerAdvice(new ProjectRegistrationExceptionHandler(), new RulePersistenceExceptionHandler()).build();
   }
