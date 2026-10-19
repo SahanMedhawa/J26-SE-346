@@ -13,4 +13,5 @@ public interface ProjectRepository {
   Optional<RegisteredProject> findById(UUID id);
 
   Optional<RegisteredProject> findByNormalizedRepositoryUrl(String normalizedRepositoryUrl);
+
 }

@@ -5,6 +5,8 @@ import { RepositoryPage } from "../modules/conformance/RepositoryPage";
 import { SettingsPage } from "../modules/conformance/SettingsPage";
 import { EnforcementPage } from "../modules/enforcement/EnforcementPage";
 import { HomePage } from "../modules/conformance/HomePage";
+import { CreateProjectPage } from "../modules/conformance/CreateProjectPage";
+import { ProjectDashboardPage } from "../modules/conformance/ProjectDashboardPage";
 import { ADRManagementPage, RulesPage } from "../modules/rules/RulesPage";
 import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
 import { RuleValidationPage } from "../modules/rules/RuleValidationPage";
@@ -14,7 +16,7 @@ import "../styles.css";
 
 export function App() {
 	const location = useLocation();
-	const standalonePage = ["/", "/home", "/repository", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname);
+	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || location.pathname.startsWith("/projects/");
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className="topbar">
 			<Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>
@@ -24,7 +26,9 @@ export function App() {
 		<Routes>
 			<Route path="/" element={<HomePage/>}/>
 			<Route path="/home" element={<HomePage/>}/>
+			<Route path="/projects/new" element={<CreateProjectPage/>}/>
 			<Route path="/projects" element={<ArchitectureProjects/>}/>
+			<Route path="/projects/:projectId" element={<ProjectDashboardPage/>}/>
 			<Route path="/repository" element={<RepositoryPage/>}/>
 			<Route path="/rules" element={<RulesPage/>}>
 				<Route index element={<Navigate replace to="architecture-rules" />} />
