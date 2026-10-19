@@ -1,8 +1,6 @@
 package akegp.enforcement.review;
 
 import akegp.enforcement.conformance.ConformanceScanner;
-import akegp.enforcement.conformance.ScanReport;
-import akegp.enforcement.conformance.ScanRequest;
 import akegp.enforcement.domain.Decision;
 import akegp.enforcement.domain.DecisionAction;
 import akegp.enforcement.domain.Justification;
@@ -13,7 +11,6 @@ import akegp.enforcement.repository.EnforcementRepository;
 import akegp.enforcement.service.EnforcementException;
 import akegp.enforcement.service.RunStatusPublisher;
 import java.time.Instant;
-import java.util.List;
 
 /** A human reviewer's decision on a held pull request. The only way a held PR is released or failed. */
 public class ReviewService {
@@ -45,18 +42,8 @@ public class ReviewService {
         run.setState(RunState.APPROVED_EXCEPTION);
         status.publish(run, StatusState.SUCCESS, "Exception approved by " + reviewer + ": " + justification.wire());
       }
-      case APPLY_FIX -> {
-        // After a fix is applied the code changed, so Component 2 must re-verify before anything is released.
-        ScanReport report = rescan(run);
-        if (report != null && report.violations().isEmpty()) {
-          run.setViolations(List.of());
-          run.setState(RunState.PASSED);
-          status.publish(run, StatusState.SUCCESS, "Fix applied by " + reviewer + ", re-scan clean");
-        } else {
-          run.setState(RunState.HELD);
-          status.publish(run, StatusState.PENDING, "Fix applied but re-scan not clean or unavailable, still held");
-        }
-      }
+      case APPLY_FIX -> throw new EnforcementException(400,
+          "A fix is verified against the pull request on GitHub, not against stored data: use FixVerificationService");
       case REQUEST_CHANGES -> {
         run.setState(RunState.CHANGES_REQUESTED);
         status.publish(run, StatusState.FAILURE, "Changes requested by " + reviewer);
@@ -72,14 +59,5 @@ public class ReviewService {
         + (justification != null ? " justification=" + justification.wire() : "")
         + " resultingState=" + run.getState().wire());
     return run;
-  }
-
-  private ScanReport rescan(PipelineRun run) {
-    try {
-      return scanner.scan(new ScanRequest(run.getRepoUrl(), run.getCommitSha(), run.getBaseSha(), run.getPrNumber(),
-          run.getProjectId(), run.getChangedFiles(), run.getChanges()));
-    } catch (RuntimeException e) {
-      return null;
-    }
   }
 }
