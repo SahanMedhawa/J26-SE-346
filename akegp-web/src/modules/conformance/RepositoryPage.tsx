@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./WorkflowPages.css";
 
-type CodeGraph = { files: { path: string; language: string }[]; dependencies: { source: string; target: string }[] };
+type CodeGraph = { files: { path: string; language: string; kind?: string }[]; dependencies: { source: string; target: string }[] };
 const availableLanguages = ["Java", "TypeScript", "JavaScript"];
 
 export function RepositoryPage() {

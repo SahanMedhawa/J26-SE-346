@@ -1,11 +1,2 @@
-import { createContext, useContext } from "react";
-import { Project } from "../../shared/api/client";
-
-export const SelectedProjectContext = createContext<{
-  selectedProject: Project | null;
-  setSelectedProject: (project: Project) => void;
-}>({ selectedProject: null, setSelectedProject: () => undefined });
-
-export function useSelectedProject() {
-  return useContext(SelectedProjectContext);
-}
+// Compatibility import for existing Component 1 screens. Selection is owned by the shared app.
+export { SelectedProjectContext, useSelectedProject } from "../../shared/projects/SelectedProject";

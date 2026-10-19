@@ -14,7 +14,7 @@ import akegp.rules.domain.ProjectStatus;
 import akegp.rules.repository.InMemoryADRRepository;
 import akegp.rules.repository.InMemoryProjectRepository;
 import akegp.rules.service.ADRServiceImpl;
-import akegp.rules.service.DuplicateADRException;
+import akegp.rules.service.ReadableIdException;
 import akegp.rules.service.InactiveProjectException;
 import akegp.rules.service.StaleADRException;
 import akegp.rules.service.ProjectRegistrationServiceImpl;
@@ -31,7 +31,7 @@ class ADRServiceTest {
   @BeforeEach
   void setUp() {
     projectService = new ProjectRegistrationServiceImpl(new InMemoryProjectRepository());
-    service = new ADRServiceImpl(new InMemoryADRRepository(), projectService);
+    service = new ADRServiceImpl(new InMemoryADRRepository(), projectService, new TestReadableIdRepository());
     projectId =
         projectService
             .register(
@@ -43,7 +43,7 @@ class ADRServiceTest {
 
   @Test
   void createsAndVersionsADR() {
-    ArchitectureDecisionRecord created = service.create(projectId, request("ADR-001"));
+    ArchitectureDecisionRecord created = service.create(projectId, request());
     assertEquals(1, created.version());
 
     ArchitectureDecisionRecord updated =
@@ -59,7 +59,7 @@ class ADRServiceTest {
 
   @Test
   void identicalUpdateDoesNotIncrementVersion() {
-    ArchitectureDecisionRecord created = service.create(projectId, request("ADR-001"));
+    ArchitectureDecisionRecord created = service.create(projectId, request());
     ArchitectureDecisionRecord unchanged =
         service.update(
             projectId,
@@ -73,7 +73,7 @@ class ADRServiceTest {
 
   @Test
   void rejectsStaleUpdateAndInactiveProject() {
-    ArchitectureDecisionRecord created = service.create(projectId, request("ADR-001"));
+    ArchitectureDecisionRecord created = service.create(projectId, request());
     service.update(
         projectId, created.id(),
         new UpdateADRRequest(
@@ -88,12 +88,12 @@ class ADRServiceTest {
             "Another consequences with enough detail.", 1)));
 
     projectService.updateStatus(projectId, new ProjectStatusUpdateRequest(ProjectStatus.INACTIVE));
-    assertThrows(InactiveProjectException.class, () -> service.create(projectId, request("ADR-002")));
+    assertThrows(InactiveProjectException.class, () -> service.create(projectId, request()));
   }
 
   @Test
   void allowsSameAdrIdInDifferentProjectsAndFiltersSearch() {
-    service.create(projectId, request("ADR-001"));
+    service.create(projectId, request());
     UUID otherProject =
         projectService
             .register(
@@ -101,16 +101,16 @@ class ADRServiceTest {
                     "Other", null, "https://github.com/example/other-" + UUID.randomUUID(),
                     Set.of(ArchitectureStyle.MICROSERVICES)))
             .id();
-    service.create(otherProject, request("ADR-001"));
+    service.create(otherProject, request());
     assertEquals(1, service.findAll(projectId, null, "context").size());
     assertEquals(1, service.findAll(otherProject, ADRStatus.PROPOSED, null).size());
   }
 
   @Test
-  void rejectsDuplicateWithinProjectAndCrossProjectAccess() {
-    ArchitectureDecisionRecord created = service.create(projectId, request("ADR-001"));
+  void rejectsClientIdAndCrossProjectAccess() {
+    ArchitectureDecisionRecord created = service.create(projectId, request());
     assertThrows(
-        DuplicateADRException.class, () -> service.create(projectId, request("ADR-001")));
+        ReadableIdException.class, () -> service.create(projectId, new CreateADRRequest("ADR-999", "Valid title", ADRStatus.PROPOSED, "Context details", "Decision details", "Consequences details")));
     UUID otherProject =
         projectService
             .register(
@@ -127,9 +127,9 @@ class ADRServiceTest {
         () -> service.findById(projectId, created.id()));
   }
 
-  private static CreateADRRequest request(String adrId) {
+  private static CreateADRRequest request() {
     return new CreateADRRequest(
-        adrId, "Architecture decision title", ADRStatus.PROPOSED,
+        null, "Architecture decision title", ADRStatus.PROPOSED,
         "This context has enough detail.", "This decision has enough detail.",
         "These consequences have enough detail.");
   }

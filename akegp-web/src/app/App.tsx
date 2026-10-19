@@ -5,14 +5,17 @@ import { RepositoryPage } from "../modules/conformance/RepositoryPage";
 import { SettingsPage } from "../modules/conformance/SettingsPage";
 import { EnforcementPage } from "../modules/enforcement/EnforcementPage";
 import { HomePage } from "../modules/conformance/HomePage";
-import { ADRManagementPage, ComingSoonPage, ProjectsPage, RulesPage } from "../modules/rules/RulesPage";
+import { ADRManagementPage, RulesPage } from "../modules/rules/RulesPage";
 import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
+import { RuleValidationPage } from "../modules/rules/RuleValidationPage";
+import { SelectedProjectProvider } from "../shared/projects/SelectedProject";
+import { ArchitectureProjects } from "../shared/projects/ArchitectureProjects";
 import "../styles.css";
 
 export function App() {
 	const location = useLocation();
 	const standalonePage = ["/", "/home", "/repository", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname);
-	return <div className="app-shell">
+	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className="topbar">
 			<Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>
 			<span className="topbar-note">ARCHITECTURE KNOWLEDGE SYSTEM</span>
@@ -21,13 +24,14 @@ export function App() {
 		<Routes>
 			<Route path="/" element={<HomePage/>}/>
 			<Route path="/home" element={<HomePage/>}/>
+			<Route path="/projects" element={<ArchitectureProjects/>}/>
 			<Route path="/repository" element={<RepositoryPage/>}/>
 			<Route path="/rules" element={<RulesPage/>}>
 				<Route index element={<Navigate replace to="architecture-rules" />} />
-				<Route path="projects" element={<ProjectsPage/>}/>
+				<Route path="projects" element={<Navigate replace to="/projects" />}/>
 				<Route path="adrs" element={<ADRManagementPage />} />
 				<Route path="architecture-rules" element={<ArchitectureRulesPage />} />
-				<Route path="validation" element={<ComingSoonPage title="Formal Rule & Mapping Validation" description="Validate rule definitions and mappings before they become part of your conformance framework." />} />
+				<Route path="validation" element={<RuleValidationPage />} />
 				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
 			</Route>
 			<Route path="/settings" element={<SettingsPage/>}/>
@@ -37,5 +41,5 @@ export function App() {
 			<Route path="/analytics/*" element={<AnalyticsPage/>}/>
 			<Route path="*" element={<HomePage/>}/>
 		</Routes>
-	</div>;
+	</div></SelectedProjectProvider>;
 }
