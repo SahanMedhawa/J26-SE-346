@@ -4,6 +4,7 @@ import akegp.enforcement.config.EnforcementProperties;
 import akegp.enforcement.domain.PipelineEvent;
 import akegp.enforcement.domain.PipelineRun;
 import akegp.enforcement.repository.EnforcementRepository;
+import akegp.enforcement.review.FixVerificationService;
 import akegp.enforcement.review.ReviewService;
 import akegp.enforcement.service.DashboardStats;
 import akegp.enforcement.service.DashboardStatsService;
@@ -28,14 +29,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class PipelineEnforcementApi {
   private final EnforcementService enforcement;
   private final ReviewService review;
+  private final FixVerificationService fixes;
   private final DashboardStatsService stats;
   private final EnforcementRepository repository;
   private final EnforcementProperties props;
 
-  public PipelineEnforcementApi(EnforcementService enforcement, ReviewService review, DashboardStatsService stats,
-                                EnforcementRepository repository, EnforcementProperties props) {
+  public PipelineEnforcementApi(EnforcementService enforcement, ReviewService review, FixVerificationService fixes,
+                                DashboardStatsService stats, EnforcementRepository repository, EnforcementProperties props) {
     this.enforcement = enforcement;
     this.review = review;
+    this.fixes = fixes;
     this.stats = stats;
     this.repository = repository;
     this.props = props;
@@ -62,11 +65,22 @@ public class PipelineEnforcementApi {
     return repository.latestPerPr().stream().map(RunView::of).toList();
   }
 
+  /** Every scan of one pull request, newest first (what the dashboard shows behind "earlier"). */
+  @GetMapping("/prs/{owner}/{name}/{pr}/history")
+  public List<Map<String, Object>> history(@PathVariable("owner") String owner, @PathVariable("name") String name, @PathVariable("pr") int pr) {
+    return RunView.history(repository.listRuns(5000), owner + "/" + name, pr);
+  }
+
   @PostMapping("/prs/{owner}/{name}/{pr}/decision")
-  public Map<String, Object> decide(@PathVariable String owner, @PathVariable String name, @PathVariable int pr,
+  public Map<String, Object> decide(@PathVariable("owner") String owner, @PathVariable("name") String name, @PathVariable("pr") int pr,
                                     @RequestBody Map<String, Object> body) {
-    PipelineRun run = review.decide(owner + "/" + name, pr, str(body, "action"), str(body, "reviewer"),
-        str(body, "justification"), str(body, "comment"));
+    PipelineRun run;
+    if ("apply_fix".equals(str(body, "action"))) {
+      run = fixes.verify(owner + "/" + name, pr, str(body, "reviewer"));   // reads the pull request from GitHub
+    } else {
+      run = review.decide(owner + "/" + name, pr, str(body, "action"), str(body, "reviewer"),
+          str(body, "justification"), str(body, "comment"));
+    }
     return RunView.of(run);
   }
 
