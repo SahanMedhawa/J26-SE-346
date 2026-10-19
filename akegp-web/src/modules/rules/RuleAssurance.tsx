@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ADR, ApiClientError, ArchitectReviewDecision, ArchitectReviewHistoryEntry, ArchitectReviewWorkspace, ArchitectureRule, ImplementationMappings, StoredStructuralValidation, adrsApi, rulesApi } from "../../shared/api/client";
+import { ADR, AdrRuleFidelity, ApiClientError, ArchitectReviewDecision, ArchitectReviewHistoryEntry, ArchitectReviewWorkspace, ArchitectureRule, ImplementationMappings, StoredStructuralValidation, adrsApi, rulesApi } from "../../shared/api/client";
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiClientError) return Object.values(error.fieldErrors).join(" ") || error.message;
@@ -40,6 +40,36 @@ export function StoredValidationResult({ projectId, ruleUuid, paused, refresh }:
       {result.matchedSignatureId && <><dt>Matched signature</dt><dd>{result.matchedSignatureId}</dd></>}
       {result.catalogueVersion && <><dt>Catalogue version</dt><dd>{result.catalogueVersion}</dd></>}
       {!result.current && result.lastValidationStatus && <><dt>Historical result</dt><dd>{result.lastValidationStatus} (requires revalidation)</dd></>}
+    </dl>
+  </div>;
+}
+
+export function AdrFidelityResult({ projectId, ruleUuid, paused, refresh }: { projectId: string; ruleUuid: string; paused: boolean; refresh: number }) {
+  const [result, setResult] = useState<AdrRuleFidelity | null>(null);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setResult(null);
+    setError("");
+    if (paused) return;
+    void rulesApi.adrFidelity(projectId, ruleUuid).then((loaded) => {
+      if (active) setResult(loaded);
+    }).catch((reason: unknown) => { if (active) setError(errorMessage(reason)); });
+    return () => { active = false; };
+  }, [projectId, ruleUuid, paused, refresh, retry]);
+
+  if (paused) return <p className="validation-placeholder" role="status">Refreshing ADR–rule fidelity...</p>;
+  if (error) return <div className="form-notice error-notice" role="alert">Unable to load ADR–rule fidelity: {error} <button type="button" onClick={() => setRetry((value) => value + 1)}>Retry fidelity result</button></div>;
+  if (!result) return <p className="validation-placeholder" role="status">Loading ADR–rule fidelity...</p>;
+  const tone = result.status === "MATCH" ? "validation-supported" : result.status === "MISMATCH" ? "validation-mismatch" : "validation-unsupported";
+  return <div className={`validation-result fidelity-result ${tone}`}>
+    <h4>ADR–Rule Fidelity: <span className={`assurance-status fidelity-status-${result.status.toLowerCase()}`}>{result.status}</span></h4>
+    <p>{result.explanation}</p>
+    <p className="validation-hint">PP1 recognizes the explicit pattern &quot;&lt;Source&gt; must not directly access &lt;Target&gt;&quot;, including sources joined by &quot;and&quot; or commas and separate constraint sentences. Each linked rule is evaluated independently. This is not general natural-language understanding.</p>
+    <dl>
+      {result.adrDisplayId && <><dt>Linked ADR</dt><dd>{result.adrDisplayId}</dd></>}
+      {!result.adrUuid && <><dt>Linked ADR</dt><dd>Unavailable</dd></>}
     </dl>
   </div>;
 }

@@ -435,6 +435,11 @@ h3 { font-size: 16px; letter-spacing: -.02em; line-height: 1.4; margin: 0; }
 .rule-validation-content .validation-result h4 { align-items: center; display: flex; font-size: 15px; gap: 8px; line-height: 1.5; margin: 0 0 16px; }
 .rule-validation-content .validation-supported h4 { color: #3fb950; }
 .rule-validation-content .validation-unsupported h4 { color: #d29922; }
+.rule-validation-content .validation-mismatch h4 { color: #ff7b72; }
+.rule-validation-content .fidelity-result { margin-top: 16px; }
+.rule-validation-content .assurance-status.fidelity-status-match { color: #3fb950; }
+.rule-validation-content .assurance-status.fidelity-status-mismatch { color: #ff7b72; }
+.rule-validation-content .assurance-status.fidelity-status-review_required { color: #d29922; }
 .rule-validation-content .validation-result p { color: #c9d1d9; font-size: 12px; line-height: 1.8; }
 .rule-validation-content .validation-result dl { border-top: 1px solid #21262d; display: grid; font-size: 12px; gap: 10px; grid-template-columns: auto minmax(0, 1fr); margin: 20px 0 0; padding-top: 16px; }
 .rule-validation-content .validation-result dt { color: #8b949e; }

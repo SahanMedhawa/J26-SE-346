@@ -50,6 +50,7 @@ function mount(name = "ArchitectReviewPanel", overrides = {}, initial = {}) {
     list: async () => [rule],
     validateStructure: async () => ({ ruleUuid: rule.id, validationStatus: "SUPPORTED" }),
     storedStructuralValidation: async () => stored,
+    adrFidelity: async () => ({ ruleUuid: rule.id, ruleId: rule.ruleId, adrUuid: rule.adrId, adrDisplayId: "ADR-001", status: "MATCH", explanation: "ADR decision text matches the linked rule." }),
     architectReview: async () => workspace,
     architectReviewHistory: async () => [],
     implementationMappings: async () => ({ ruleUuid: rule.id, sourceFiles: ["src/Patient.java"], targetFiles: ["src/Appointment.java"] }),
@@ -78,7 +79,7 @@ function mount(name = "ArchitectReviewPanel", overrides = {}, initial = {}) {
     },
   };
   const imports = { react: hooks, "../../shared/api/client": { ...client, rulesApi: tracked, adrsApi: { get: async (...args) => { calls.push({ method: "adr", args }); return adr; } } } };
-  const children = { StoredValidationResult: () => null, ArchitectReviewPanel: () => null, ArchitectConfirmationRegister: () => null };
+  const children = { StoredValidationResult: () => null, AdrFidelityResult: () => null, ArchitectReviewPanel: () => null, ArchitectConfirmationRegister: () => null };
   const Component = name === "ProjectValidation" ? load(pageCode, { ...imports,
     "react-router-dom": { Link: () => null, useNavigate: () => destination => calls.push({ method: "navigate", args: [destination] }) },
     "./ArchitectureRulesPage": { DarkSelect: () => null }, "./rulesWorkspace": {}, "./RuleAssurance": children,
@@ -111,6 +112,19 @@ test("loads all three persisted statuses without treating load failures as NOT_V
   await h.flush(); assert.match(h.text, /Storage unavailable/); assert.ok(!h.text.includes("NOT_VALIDATED")); h.unmount();
 });
 
+test("shows ADR-rule fidelity status and explanation on the validation results panel", async () => {
+  for (const status of ["MATCH", "MISMATCH", "REVIEW_REQUIRED"]) {
+    const h = mount("AdrFidelityResult", { adrFidelity: async () => ({ ruleUuid: rule.id, ruleId: rule.ruleId, adrUuid: rule.adrId, adrDisplayId: "ADR-001", status, explanation: `Fidelity outcome ${status}` }) });
+    assert.match(h.text, /Loading ADR/); await h.flush();
+    assert.match(h.text, new RegExp(status));
+    assert.match(h.text, new RegExp(`Fidelity outcome ${status}`));
+    assert.match(h.text, /must not directly access/);
+    h.unmount();
+  }
+  const h = mount("AdrFidelityResult", { adrFidelity: async () => { throw new Error("Fidelity unavailable"); } });
+  await h.flush(); assert.match(h.text, /Fidelity unavailable/); h.unmount();
+});
+
 test("stale structural evidence displays effective status and separately retains historical result", async () => {
   const h = mount("StoredValidationResult", { storedStructuralValidation: async () => ({ ...stored, status: "NOT_VALIDATED", current: false, lastValidationStatus: "SUPPORTED", reason: "Definition changed; rerun validation" }) });
   await h.flush(); assert.match(h.text, /NOT_VALIDATED/); assert.match(h.text, /SUPPORTED \(requires revalidation\)/); assert.match(h.text, /Definition changed/); assert.match(h.text, /Last validated/); h.unmount();
@@ -127,7 +141,7 @@ test("reloads persisted results after validation and rejects stale GET responses
 test("shows only implemented structural/review statuses and preserves ADR and mapping evidence", async () => {
   const h = mount(); await h.flush();
   assert.match(h.text, /PENDING/); assert.match(h.text, /SUPPORTED/);
-  for (const unfinished of ["Full Formal Validation", "ADR–Rule Fidelity", "Conflict Detection", "Traceability/Currency", "NOT_EVALUATED"]) assert.ok(!h.text.includes(unfinished));
+  for (const unfinished of ["Full Formal Validation", "Conflict Detection", "Traceability/Currency", "NOT_EVALUATED", "READY"]) assert.ok(!h.text.includes(unfinished));
   assert.match(h.text, /Version 2/); assert.match(h.text, /Saved context/); assert.match(h.text, /src\/Patient.java/);
   assert.match(h.text, /FORBIDDEN/); assert.ok(!h.text.includes("READY"));
   assert.ok(h.button("Confirm Rule").props.disabled); h.unmount();
@@ -216,12 +230,12 @@ test("API helpers use UUID routes, unchanged structural POST, exact review evide
   global.fetch = async (url, options) => { calls.push({ url, ...options }); return { ok: true, json: async () => workspace }; };
   try {
     const { rulesApi } = load(clientCode);
-    await rulesApi.storedStructuralValidation(rule.projectId, rule.id); await rulesApi.architectReview(rule.projectId, rule.id); await rulesApi.architectReviewHistory(rule.projectId, rule.id);
+    await rulesApi.storedStructuralValidation(rule.projectId, rule.id); await rulesApi.adrFidelity(rule.projectId, rule.id); await rulesApi.architectReview(rule.projectId, rule.id); await rulesApi.architectReviewHistory(rule.projectId, rule.id);
     const input = { decision: "CONFIRMED", reviewer: "Architect", comments: "Reviewed", expectedEvidenceFingerprint: fingerprint };
     await rulesApi.submitArchitectReview(rule.projectId, rule.id, input); await rulesApi.validateStructure(rule.projectId, rule.id, { architectureStyle: "MICROSERVICES" });
     const base = `/api/rules/projects/${rule.projectId}/rules/${rule.id}`;
-    assert.equal(calls[0].url, `${base}/structural-validation`); assert.equal(calls[1].url, `${base}/architect-review`); assert.equal(calls[2].url, `${base}/architect-review/history`);
-    assert.equal(calls[3].method, "POST"); assert.deepEqual(JSON.parse(calls[3].body), input); assert.equal(calls[4].url, `${base}/validate-structure`); assert.deepEqual(JSON.parse(calls[4].body), { architectureStyle: "MICROSERVICES" });
+    assert.equal(calls[0].url, `${base}/structural-validation`); assert.equal(calls[1].url, `${base}/adr-fidelity`); assert.equal(calls[2].url, `${base}/architect-review`); assert.equal(calls[3].url, `${base}/architect-review/history`);
+    assert.equal(calls[4].method, "POST"); assert.deepEqual(JSON.parse(calls[4].body), input); assert.equal(calls[5].url, `${base}/validate-structure`); assert.deepEqual(JSON.parse(calls[5].body), { architectureStyle: "MICROSERVICES" });
   } finally { global.fetch = previousFetch; }
 });
 
@@ -238,11 +252,14 @@ test("existing validation POST refreshes both persisted panels and preserves UUI
     assert.equal(h.calls.filter(call => call.method === "validateStructure").length, 1);
     assert.deepEqual(h.calls.find(call => call.method === "validateStructure").args, [rule.projectId, rule.id, { architectureStyle: "MICROSERVICES" }]);
     assert.equal(find(h.tree, node => node.type === h.children.StoredValidationResult).props.paused, true);
+    assert.equal(find(h.tree, node => node.type === h.children.AdrFidelityResult).props.paused, true);
     listeners.get("focus")?.(); assert.equal(h.calls.filter(call => call.method === "list").length, 1);
     pending.resolve({ validationStatus: "SUPPORTED", ruleUuid: rule.id }); await h.flush();
     const persisted = find(h.tree, node => node.type === h.children.StoredValidationResult).props;
+    const fidelity = find(h.tree, node => node.type === h.children.AdrFidelityResult).props;
     const review = find(h.tree, node => node.type === h.children.ArchitectReviewPanel).props;
     assert.equal(persisted.ruleUuid, rule.id); assert.equal(persisted.paused, false); assert.equal(persisted.refresh, 1);
+    assert.equal(fidelity.ruleUuid, rule.id); assert.equal(fidelity.paused, false); assert.equal(fidelity.refresh, 1);
     assert.equal(review.rule.id, rule.id); assert.equal(review.refresh, 1);
     let register = find(h.tree, node => node.type === h.children.ArchitectConfirmationRegister).props;
     assert.equal(register.refresh, 1); assert.equal(register.rules[0].id, rule.id);
@@ -406,6 +423,7 @@ test("selecting a register rule changes the details shown above", async () => {
     find(h.tree, node => node.type === h.children.ArchitectConfirmationRegister).props.onSelectRule(other.id); h.update({});
     assert.equal(find(h.tree, node => node.type === h.children.ArchitectReviewPanel).props.rule.id, other.id);
     assert.equal(find(h.tree, node => node.type === h.children.StoredValidationResult).props.ruleUuid, other.id);
+    assert.equal(find(h.tree, node => node.type === h.children.AdrFidelityResult).props.ruleUuid, other.id);
     let register = find(h.tree, node => node.type === h.children.ArchitectConfirmationRegister).props;
     assert.equal(register.refresh, 0);
     assert.equal(find(h.tree, node => node.type === h.children.ArchitectReviewPanel).props.refresh, 1);
