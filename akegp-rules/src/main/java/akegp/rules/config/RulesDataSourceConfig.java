@@ -7,8 +7,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration(proxyBeanMethods = false)
+@EnableTransactionManagement
 public class RulesDataSourceConfig {
 
   @Bean(name = "rulesDataSourceProperties")
@@ -26,5 +29,10 @@ public class RulesDataSourceConfig {
   @Bean(name = "rulesJdbcTemplate")
   JdbcTemplate rulesJdbcTemplate(@Qualifier("rulesDataSource") DataSource dataSource) {
     return new JdbcTemplate(dataSource);
+  }
+
+  @Bean(name = "rulesTransactionManager")
+  JdbcTransactionManager rulesTransactionManager(@Qualifier("rulesDataSource") DataSource dataSource) {
+    return new JdbcTransactionManager(dataSource);
   }
 }

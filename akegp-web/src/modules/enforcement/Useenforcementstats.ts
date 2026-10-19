@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getEnforcementStats, getRunDetails } from "./Enforcementapi";
 import type { EnforcementStats, RunDetail } from "./Enforcementapi";
 
@@ -9,6 +9,8 @@ export function useEnforcementStats() {
   const [details, setDetails] = useState<Map<number, RunDetail>>(new Map());
   const [failed, setFailed] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+
+  const reload = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,6 +34,7 @@ export function useEnforcementStats() {
       }
     }
 
+    reload.current = load;
     void load();
     const timer = setInterval(() => void load(), REFRESH_MS);
     return () => {
@@ -40,5 +43,8 @@ export function useEnforcementStats() {
     };
   }, []);
 
-  return { stats, details, failed, updatedAt };
+  /** Loads the latest data now (used after a decision, so the page does not wait for the next refresh). */
+  const refresh = useCallback(() => reload.current(), []);
+
+  return { stats, details, failed, updatedAt, refresh };
 }

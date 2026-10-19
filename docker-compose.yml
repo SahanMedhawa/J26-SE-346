@@ -13,6 +13,9 @@ services:
       NEO4J_URI: ${NEO4J_URI:?Set NEO4J_URI to your Neo4j Aura connection URI}
       NEO4J_USER: ${NEO4J_USER:?Set NEO4J_USER to your Neo4j Aura username}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:?Set NEO4J_PASSWORD to your Neo4j Aura password}
+      AKEGP_DB_URL: ${AKEGP_DB_URL:-jdbc:postgresql://timescaledb:5432/akegp}
+      AKEGP_DB_USER: ${AKEGP_DB_USER:-akegp}
+      AKEGP_DB_PASSWORD: ${AKEGP_DB_PASSWORD:-akegp}
       AKEGP_RULES_DB_URL: ${AKEGP_RULES_DB_URL:?Set AKEGP_RULES_DB_URL to your Neon PostgreSQL JDBC URL}
       AKEGP_RULES_DB_USER: ${AKEGP_RULES_DB_USER:?Set AKEGP_RULES_DB_USER to your Neon PostgreSQL username}
       AKEGP_RULES_DB_PASSWORD: ${AKEGP_RULES_DB_PASSWORD:?Set AKEGP_RULES_DB_PASSWORD to your Neon PostgreSQL password}
@@ -20,4 +23,6 @@ services:
   web:
     build: { context: akegp-web }
     depends_on: [app]
+    environment:
+      BACKEND_URL: http://app:8080
     ports: ["5173:5173"]

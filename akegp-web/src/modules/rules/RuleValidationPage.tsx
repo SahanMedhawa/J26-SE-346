@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ApiClientError, ArchitectureRule, Project, StructuralValidationResponse, ValidationArchitectureStyle, projectsApi, rulesApi } from "../../shared/api/client";
+import { ApiClientError, ArchitectureRule, Project, ValidationArchitectureStyle, projectsApi, rulesApi } from "../../shared/api/client";
 import { DarkSelect } from "./ArchitectureRulesPage";
 import { useSelectedProject } from "./rulesWorkspace";
+import { AdrFidelityResult, ArchitectConfirmationRegister, ArchitectReviewPanel, StoredValidationResult } from "./RuleAssurance";
 
 export function RuleValidationPage() {
   const { selectedProject, setSelectedProject } = useSelectedProject();
@@ -60,10 +61,12 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
   const [reload, setReload] = useState(0);
   const [chosenStyle, setChosenStyle] = useState<ValidationArchitectureStyle | "">("");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<StructuralValidationResponse | null>(null);
+  const [assuranceRefresh, setAssuranceRefresh] = useState(0);
+  const [detailRefresh, setDetailRefresh] = useState(0);
   const [validationError, setValidationError] = useState("");
   const requestVersion = useRef(0);
   const submitting = useRef(false);
+  const ruleSelectors = useRef<HTMLFieldSetElement>(null);
   const styles = [...new Set(project.architectureStyles.flatMap((style): ValidationArchitectureStyle[] => style === "MICROSERVICES_AND_LAYERED" ? ["MICROSERVICES", "LAYERED"] : [style]))];
   const style = styles.length === 1 ? styles[0] : chosenStyle;
   const rule = rules.find((item) => item.id === ruleId);
@@ -72,8 +75,13 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
     requestVersion.current += 1;
     submitting.current = false;
     setBusy(false);
-    setResult(null);
     setValidationError("");
+  }
+
+  function refreshRules() {
+    // Pause dependent reads in the same update as the explicit refresh, before the rules effect runs.
+    setLoading(true);
+    setReload((value) => value + 1);
   }
 
   useEffect(() => {
@@ -82,7 +90,6 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
       const version = ++requestVersion.current;
       submitting.current = false;
       setBusy(false);
-      setResult(null);
       setValidationError("");
       setLoading(true);
       setLoadError("");
@@ -93,21 +100,17 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
         setRuleId((current) => loaded.some((item) => item.id === current) ? current : "");
       } catch (reason) {
         if (!active || version !== requestVersion.current) return;
-        setRules([]);
         setLoadError(errorMessage(reason));
       } finally {
         if (active && version === requestVersion.current) setLoading(false);
       }
     }
     void loadRules();
-    const refresh = () => { if (document.visibilityState === "visible") void loadRules(); };
-    window.addEventListener("focus", refresh);
-    return () => { active = false; requestVersion.current += 1; window.removeEventListener("focus", refresh); };
+    return () => { active = false; requestVersion.current += 1; };
   }, [project.id, reload]);
 
   async function runValidation() {
     if (submitting.current) return;
-    setResult(null);
     setValidationError("");
     if (!project.id || !rule) { setValidationError("Select an architecture project and rule first."); return; }
     if (!style || !styles.includes(style)) { setValidationError("Select an architecture style registered for this project."); return; }
@@ -124,7 +127,7 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
       if (!response || (response.validationStatus !== "SUPPORTED" && response.validationStatus !== "UNSUPPORTED")) {
         throw new Error("The backend returned an unrecognized validation result. Please try again.");
       }
-      setResult(response);
+      setAssuranceRefresh((value) => value + 1);
     } catch (reason) {
       if (version === requestVersion.current) setValidationError(errorMessage(reason));
     } finally {
@@ -133,12 +136,12 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
   }
 
   return <>
-    <fieldset className="validation-selectors" disabled={loading || busy}>
+    <fieldset className="validation-selectors" disabled={loading || busy} ref={ruleSelectors} tabIndex={-1}>
       <div><span id="validation-rule-label">Architecture Rule</span><DarkSelect ariaLabel="Architecture Rule" value={ruleId} onChange={(id) => { clearResult(); setRuleId(id); }} options={[{ value: "", label: loading ? "Loading architecture rules..." : "Select architecture rule" }, ...rules.map((item) => ({ value: item.id, label: `${item.ruleId} — ${item.sourceElement} → ${item.targetElement}` }))]} /></div>
       {styles.length > 1 ? <div><span>Architecture Style</span><DarkSelect ariaLabel="Architecture Style" value={chosenStyle} onChange={(value) => { clearResult(); setChosenStyle(value as ValidationArchitectureStyle | ""); }} options={[{ value: "", label: "Select architecture style" }, ...styles.map((value) => ({ value, label: styleLabel(value) }))]} /></div> : <div><span>Architecture Style</span><p className="validation-style">{style ? styleLabel(style) : "No applicable architecture style registered"}</p></div>}
     </fieldset>
     {loading && <p className="validation-hint" role="status">Loading architecture rules...</p>}
-    {loadError && <div className="form-notice error-notice" role="alert">Unable to load architecture rules: {loadError} <button type="button" onClick={() => setReload((value) => value + 1)}>Retry</button></div>}
+    {loadError && <div className="form-notice error-notice" role="alert">Unable to load architecture rules: {loadError} <button type="button" onClick={refreshRules}>Retry</button></div>}
     {!loading && !loadError && !rules.length && <p className="validation-hint">This project has no saved architecture rules. <Link to="/rules/architecture-rules">Create an architecture rule</Link> before running validation.</p>}
     {styles.length > 1 && !style && <p className="validation-hint">This project supports multiple styles. Choose a style before running validation.</p>}
     <div className="validation-panels">
@@ -164,14 +167,22 @@ function ProjectValidation({ project, initialRuleId }: { project: Project; initi
       <section className="validation-panel validation-results" aria-labelledby="validation-results-title" aria-busy={busy}>
         <h3 id="validation-results-title">Validation Results</h3>
         <div aria-live="polite" aria-atomic="true">
-          {busy ? <p className="validation-placeholder" role="status">Validating the saved rule structure...</p> : validationError ? <div className="form-notice error-notice" role="alert"><strong>Unable to validate rule structure</strong><p>{validationError}</p></div> : result ? <div className={`validation-result ${result.validationStatus === "SUPPORTED" ? "validation-supported" : "validation-unsupported"}`}>
-            <h4><span aria-hidden="true">{result.validationStatus === "SUPPORTED" ? "✓" : "!"}</span> Rule Structure {result.validationStatus === "SUPPORTED" ? "Supported" : "Unsupported"}</h4>
-            <p>{result.validationStatus === "SUPPORTED" ? "The selected architecture rule uses a structural combination supported for the selected architecture style." : "The selected architecture rule uses a structural combination that is not supported for the selected architecture style. Review the rule definition."}</p>
-            <dl><dt>Rule</dt><dd>{result.ruleId}</dd><dt>Architecture Style</dt><dd>{styleLabel(result.architectureStyle)}</dd></dl>
-          </div> : <p className="validation-placeholder">Select an architecture rule and click Run Validation to view its validation result.</p>}
+          {validationError && <div className="form-notice error-notice" role="alert"><strong>Unable to validate rule structure</strong><p>{validationError}</p></div>}
+          {rule ? <>
+            <StoredValidationResult key={`structural-${rule.id}`} projectId={project.id} ruleUuid={rule.id} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} />
+            <AdrFidelityResult key={`fidelity-${rule.id}`} projectId={project.id} ruleUuid={rule.id} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} />
+          </> : <p className="validation-placeholder">Select an architecture rule to view its persisted validation result.</p>}
         </div>
       </section>
     </div>
+    {rule && <ArchitectReviewPanel key={rule.id} projectId={project.id} rule={rule} paused={busy || loading} refresh={assuranceRefresh + detailRefresh} onEvidenceChanged={refreshRules} onReviewSaved={() => setAssuranceRefresh((value) => value + 1)} />}
+    <ArchitectConfirmationRegister projectId={project.id} rules={rules} selectedRuleId={ruleId} paused={busy || loading} refresh={assuranceRefresh} onRefresh={refreshRules} onSelectRule={(id) => {
+      clearResult();
+      setRuleId(id);
+      setDetailRefresh((value) => value + 1);
+      ruleSelectors.current?.focus({ preventScroll: true });
+      ruleSelectors.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }} />
   </>;
 }
 
