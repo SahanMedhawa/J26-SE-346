@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useMatch } from "react-router-dom";
 import { AnalyticsPage } from "../modules/analytics/AnalyticsPage";
 import { ConformancePage } from "../modules/conformance/ConformancePage";
 import { RepositoryPage } from "../modules/conformance/RepositoryPage";
@@ -18,13 +18,19 @@ import "../styles.css";
 
 export function App() {
 	const location = useLocation();
+	const projectRulesMatch = useMatch("/projects/:projectId/rules/*");
+	const projectId = projectRulesMatch?.params.projectId;
 	const componentOnePage = /^\/(?:rules|projects\/[^/]+\/rules)(?:\/|$)/.test(location.pathname);
 	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || (location.pathname.startsWith("/projects/") && !componentOnePage) || location.pathname.startsWith("/conformance/graph/");
+	const settingsLink = <Link className="app-settings-link" to="/settings" aria-label="Project settings" title="Project settings">&#9881;</Link>;
 	return <SelectedProjectProvider><div className="app-shell">
-		{!standalonePage && <header className="topbar">
+		{!standalonePage && <header className={componentOnePage ? "topbar component-one-topbar" : "topbar"}>
 			{componentOnePage ? <Brand /> : <Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>}
 			<span className="topbar-note">ARCHITECTURE KNOWLEDGE SYSTEM</span>
-			<Link className="app-settings-link" to="/settings" aria-label="Project settings" title="Project settings">&#9881;</Link>
+			{componentOnePage ? <div className="component-one-header-actions">
+				{projectId && <Link className="project-dashboard-link" to={`/projects/${encodeURIComponent(projectId)}`}>← Project Dashboard</Link>}
+				{settingsLink}
+			</div> : settingsLink}
 		</header>}
 		<Routes>
 			<Route path="/" element={<HomePage/>}/>
