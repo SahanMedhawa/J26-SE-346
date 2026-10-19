@@ -71,11 +71,18 @@ class AdrRuleFidelityTest {
 
   private ArchitectureRule saveRule(
       String ruleId, String source, RelationshipType relationship, String target, RuleDecision decision) {
+    return saveRule(ruleId, source, ArchitectureElementType.SERVICE, relationship,
+        target, ArchitectureElementType.DATABASE, decision);
+  }
+
+  private ArchitectureRule saveRule(
+      String ruleId, String source, ArchitectureElementType sourceType, RelationshipType relationship,
+      String target, ArchitectureElementType targetType, RuleDecision decision) {
     var now = Instant.now();
     return rules.insert(new ArchitectureRule(
         UUID.randomUUID(), ruleId, projectId, adrId, source,
-        ArchitectureElementType.SERVICE, relationship, target,
-        ArchitectureElementType.DATABASE, decision, "Description", RuleSeverity.HIGH, now, now));
+        sourceType, relationship, target,
+        targetType, decision, "Description", RuleSeverity.HIGH, now, now));
   }
 
   private void setAdrDecision(String decision) {
@@ -96,7 +103,8 @@ class AdrRuleFidelityTest {
         RuleDecision.FORBIDDEN);
     var result = fidelity.evaluate(projectId, rule.id());
     assertEquals(AdrRuleFidelityStatus.MATCH, result.status());
-    assertTrue(result.explanation().toLowerCase().contains("match"));
+    assertEquals("The architecture rule is consistent with the decision recorded in its linked ADR.",
+        result.explanation());
     mvc.perform(get(fidelityPath(rule.id())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("MATCH"))
@@ -147,8 +155,8 @@ class AdrRuleFidelityTest {
         RuleDecision.FORBIDDEN);
     var result = fidelity.evaluate(projectId, rule.id());
     assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, result.status());
-    assertTrue(result.explanation().toLowerCase().contains("unsupported")
-        || result.explanation().toLowerCase().contains("ambiguous"));
+    assertEquals("The ADR decision cannot be reliably evaluated using the supported decision patterns. "
+        + "Manual review is required.", result.explanation());
   }
 
   @Test
@@ -294,6 +302,149 @@ class AdrRuleFidelityTest {
       setAdrDecision(text);
       assertTrue(AdrDecisionFidelityParser.parse(text).isEmpty(), text);
       assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, fidelity.evaluate(projectId, rule.id()).status(), text);
+    }
+  }
+
+  @Test
+  void explicitModalPatternsMatchAndEveryOtherDecisionContradicts() {
+    var verbs = List.of("depend on", "call", "directly access");
+    var relationships = List.of(RelationshipType.DEPENDS_ON, RelationshipType.CALLS,
+        RelationshipType.DIRECT_DATABASE_ACCESS);
+    var modals = List.of("must", "must not", "may");
+    var decisions = List.of(RuleDecision.REQUIRED, RuleDecision.FORBIDDEN, RuleDecision.ALLOWED);
+    for (int v = 0; v < verbs.size(); v++) {
+      for (int m = 0; m < modals.size(); m++) {
+        setAdrDecision("OrderService " + modals.get(m) + " " + verbs.get(v) + " OrdersDb.");
+        for (var ruleDecision : RuleDecision.values()) {
+          var rule = saveRule("R-" + v + m + ruleDecision, "OrderService", relationships.get(v),
+              "OrdersDb", ruleDecision);
+          var result = fidelity.evaluate(projectId, rule.id());
+          assertEquals(ruleDecision == decisions.get(m) ? AdrRuleFidelityStatus.MATCH
+              : AdrRuleFidelityStatus.MISMATCH, result.status());
+          assertFalse(result.explanation().toUpperCase().contains("PP1"));
+        }
+      }
+    }
+  }
+
+  @Test
+  void layeredConstraintsIndependentlyMatchAndRemainSeparateFromStructuralSupport() throws Exception {
+    projectId = projects.register(new ProjectRegistrationRequest(
+        "Layered", null, "https://github.com/example/" + UUID.randomUUID(),
+        Set.of(ArchitectureStyle.LAYERED))).id();
+    adrId = adrs.create(projectId, new CreateADRRequest(null, "Layered dependencies", ADRStatus.ACCEPTED,
+        "Enough context for ADR", "OwnerController must depend on ClinicService and must not depend on OwnerRepository.",
+        "Enough consequences text")).id();
+    var required = saveRule("R-001", "OwnerController", ArchitectureElementType.CONTROLLER,
+        RelationshipType.DEPENDS_ON, "ClinicService", ArchitectureElementType.SERVICE_LAYER, RuleDecision.REQUIRED);
+    var forbidden = saveRule("R-002", "OwnerController", ArchitectureElementType.CONTROLLER,
+        RelationshipType.DEPENDS_ON, "OwnerRepository", ArchitectureElementType.REPOSITORY, RuleDecision.FORBIDDEN);
+    for (String text : List.of(
+        "OwnerController must depend on ClinicService and must not depend on OwnerRepository.",
+        "OwnerController must depend on ClinicService and OwnerController must not depend on OwnerRepository.",
+        "OwnerController must depend on ClinicService; OwnerController must not depend on OwnerRepository.",
+        "OwnerController must depend on ClinicService. OwnerController must not depend on OwnerRepository.")) {
+      setAdrDecision(text);
+      for (var rule : List.of(required, forbidden)) {
+        assertEquals(AdrRuleFidelityStatus.MATCH, fidelity.evaluate(projectId, rule.id()).status(), text);
+        assertEquals(StructuralValidationStatus.SUPPORTED,
+            structural.validate(projectId, rule.id(), null).validationStatus());
+        mvc.perform(get(fidelityPath(rule.id())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("MATCH"))
+            .andExpect(jsonPath("$.adrUuid").value(adrId.toString()))
+            .andExpect(jsonPath("$.adrDisplayId").value(adrs.findById(projectId, adrId).adrId()));
+        assertEquals(rule, rules.findById(projectId, rule.id()).orElseThrow());
+      }
+    }
+    setAdrDecision("OwnerController must access operations through ClinicService.");
+    assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, fidelity.evaluate(projectId, required.id()).status());
+  }
+
+  @Test
+  void conjunctionsPreserveSourceListsAndExplicitSubjectChanges() {
+    var parsed = AdrDecisionFidelityParser.parse(
+        "A, B and C MUST depend ON pkg.Service, and may CALL pkg.Api and D must not directly access Db.");
+    assertEquals(7, parsed.size());
+    assertEquals(List.of("A", "B", "C", "A", "B", "C", "D"),
+        parsed.stream().map(AdrDecisionFidelityParser.InterpretedDecision::sourceElement).toList());
+    assertEquals(new AdrDecisionFidelityParser.InterpretedDecision(
+        "D", RelationshipType.DIRECT_DATABASE_ACCESS, "Db", RuleDecision.FORBIDDEN), parsed.get(6));
+    assertTrue(parsed.subList(3, 6).stream().allMatch(c -> c.relationshipType() == RelationshipType.CALLS
+        && c.decision() == RuleDecision.ALLOWED && c.targetElement().equals("pkg.Api")));
+  }
+
+  @Test
+  void qualifiedIncompleteOrUnsupportedConjunctionGroupsAreNotPartiallyAccepted() {
+    for (String text : List.of(
+        "A must depend on B and must not depend on C unless approved.",
+        "A must depend on B unless approved and must call C.",
+        "A must depend on B and may call C?",
+        "If approved, A must depend on B and must call C.",
+        "A must depend on B and must call",
+        "A must depend on B and",
+        "A must depend on B and C.",
+        "A must depend on B or must call C.",
+        "A should depend on B.",
+        "A must access operations through B.",
+        "must depend on B.",
+        "A must depend on B; must call C unless approved.")) {
+      var parsed = AdrDecisionFidelityParser.parse(text);
+      if (text.contains(";")) assertEquals(1, parsed.size(), text);
+      else assertTrue(parsed.isEmpty(), text);
+    }
+    assertEquals(1, AdrDecisionFidelityParser.parse(
+        "A must depend on B and must call C unless approved. D must call E.").size());
+  }
+
+  @Test
+  void fullTripleMustMatchAndContradictionsTakePrecedence() {
+    var rule = saveRule("OrderService", RelationshipType.DEPENDS_ON, "OrdersDb", RuleDecision.REQUIRED);
+    for (String text : List.of(
+        "BillingService must depend on OrdersDb.",
+        "OrderService must depend on PaymentsDb.",
+        "OrderService must call OrdersDb.",
+        "orderservice must depend on OrdersDb.",
+        "BillingService must depend on OrdersDb. OrderService should depend on OrdersDb.")) {
+      setAdrDecision(text);
+      assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, fidelity.evaluate(projectId, rule.id()).status(), text);
+    }
+    for (String text : List.of(
+        "OrderService must depend on OrdersDb and must not depend on OrdersDb.",
+        "OrderService must not depend on OrdersDb. OrderService must depend on OrdersDb.")) {
+      setAdrDecision(text);
+      assertEquals(AdrRuleFidelityStatus.MISMATCH, fidelity.evaluate(projectId, rule.id()).status(), text);
+    }
+  }
+
+  @Test
+  void fidelityDoesNotReadRulesOrLinkedAdrsFromAnotherProject() throws Exception {
+    var rule = saveRule("OrderService", RelationshipType.DIRECT_DATABASE_ACCESS, "OrdersDb", RuleDecision.FORBIDDEN);
+    var otherProject = projects.register(new ProjectRegistrationRequest(
+        "Other project", null, "https://github.com/example/" + UUID.randomUUID(),
+        Set.of(ArchitectureStyle.LAYERED))).id();
+    assertThrows(RuleNotFoundException.class, () -> fidelity.evaluate(otherProject, rule.id()));
+    mvc.perform(get("/api/rules/projects/{p}/rules/{r}/adr-fidelity", otherProject, rule.id()))
+        .andExpect(status().isNotFound());
+    var foreignAdr = adrs.create(otherProject, new CreateADRRequest(null, "Foreign ADR", ADRStatus.ACCEPTED,
+        "Enough context for ADR", "OrderService must not directly access OrdersDb", "Enough consequences text"));
+    rules.update(new ArchitectureRule(rule.id(), rule.ruleId(), projectId, foreignAdr.id(), rule.sourceElement(),
+        rule.sourceElementType(), rule.relationshipType(), rule.targetElement(), rule.targetElementType(),
+        rule.decision(), rule.description(), rule.severity(), rule.createdAt(), rule.updatedAt()));
+    var result = fidelity.evaluate(projectId, rule.id());
+    assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, result.status());
+    assertNull(result.adrUuid());
+    assertFalse(result.explanation().contains("PP1"));
+  }
+
+  @Test
+  void reviewExplanationsContainNoPp1Wording() {
+    var rule = saveRule("OrderService", RelationshipType.DEPENDS_ON, "OrdersDb", RuleDecision.REQUIRED);
+    for (String text : List.of(" ", "Unsupported decision prose.", "BillingService must depend on OrdersDb.")) {
+      setAdrDecision(text);
+      var result = fidelity.evaluate(projectId, rule.id());
+      assertEquals(AdrRuleFidelityStatus.REVIEW_REQUIRED, result.status());
+      assertFalse(result.explanation().toUpperCase().contains("PP1"));
     }
   }
 }

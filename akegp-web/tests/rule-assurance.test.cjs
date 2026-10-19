@@ -118,7 +118,8 @@ test("shows ADR-rule fidelity status and explanation on the validation results p
     assert.match(h.text, /Loading ADR/); await h.flush();
     assert.match(h.text, new RegExp(status));
     assert.match(h.text, new RegExp(`Fidelity outcome ${status}`));
-    assert.match(h.text, /must not directly access/);
+    assert.match(h.text, /ADR-001/);
+    assert.doesNotMatch(h.text, /PP1|must not directly access/);
     h.unmount();
   }
   const h = mount("AdrFidelityResult", { adrFidelity: async () => { throw new Error("Fidelity unavailable"); } });

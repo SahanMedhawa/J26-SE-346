@@ -37,9 +37,8 @@ public class AdrRuleFidelityService {
     var interpreted = AdrDecisionFidelityParser.parse(decisionText);
     if (interpreted.isEmpty()) {
       return response(rule, adr, AdrRuleFidelityStatus.REVIEW_REQUIRED,
-          "ADR decision text is unsupported or ambiguous for PP1. Only the explicit pattern "
-              + "'<Source> must not directly access <Target>' is recognized, with sources "
-              + "optionally joined by 'and' or commas and separate constraint sentences.");
+          "The ADR decision cannot be reliably evaluated using the supported decision patterns. "
+              + "Manual review is required.");
     }
     var relevant = interpreted.stream()
         .filter(constraint -> constraint.sourceElement().equals(rule.sourceElement())
@@ -53,12 +52,13 @@ public class AdrRuleFidelityService {
     }
     if (relevant.stream().allMatch(constraint -> constraint.decision() == rule.decision())) {
       return response(rule, adr, AdrRuleFidelityStatus.MATCH,
-          "ADR decision text matches the linked rule for the supported PP1 pattern "
-              + "(source, DIRECT_DATABASE_ACCESS, target, FORBIDDEN).");
+          "The architecture rule is consistent with the decision recorded in its linked ADR.");
     }
     return response(rule, adr, AdrRuleFidelityStatus.MISMATCH,
-        "Recognized ADR constraint forbids direct database access for the same source and target, "
-            + "contradicting the linked rule's decision: " + rule.decision() + ".");
+        "The architecture rule conflicts with the decision recorded in its linked ADR. "
+            + "For the same source, relationship and target, the ADR records "
+            + relevant.stream().map(constraint -> constraint.decision().name()).distinct().sorted().toList()
+            + ", but the rule decision is " + rule.decision() + ".");
   }
 
   private static AdrRuleFidelityResponse response(
