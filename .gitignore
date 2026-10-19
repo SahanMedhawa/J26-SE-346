@@ -6,3 +6,4 @@ akegp-app/src/main/resources/application-local.yml
 *.iml
 .DS_Store
 config/
+.env

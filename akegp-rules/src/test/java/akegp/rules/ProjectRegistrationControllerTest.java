@@ -105,4 +105,5 @@ class ProjectRegistrationControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("Architecture Platform"));
   }
+
 }

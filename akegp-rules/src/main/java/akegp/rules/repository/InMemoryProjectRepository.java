@@ -39,4 +39,5 @@ public class InMemoryProjectRepository implements ProjectRepository {
         .filter(project -> project.repositoryUrl().equals(normalizedRepositoryUrl))
         .findFirst();
   }
+
 }

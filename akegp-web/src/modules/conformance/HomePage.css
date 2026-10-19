@@ -1,0 +1,76 @@
+.home-manifesto {
+	align-items: center;
+	border-top: 1px solid #3a493d;
+	display: grid;
+	gap: 25px;
+	justify-items: center;
+	margin-top: 54px;
+	padding-top: 30px;
+	text-align: center;
+}
+
+.home-manifesto-lead {
+	color: #dce8dd;
+	font-family: Georgia, serif;
+	font-size: clamp(27px, 4vw, 54px);
+	letter-spacing: -.035em;
+	line-height: 1.08;
+	margin: 0;
+	max-width: 820px;
+}
+
+.home-manifesto-trail {
+	align-items: center;
+	color: #71d687;
+	display: flex;
+	font: 10px ui-monospace, SFMono-Regular, Consolas, monospace;
+	gap: 13px;
+	letter-spacing: .13em;
+	padding: 0 0 6px;
+	white-space: nowrap;
+}
+
+.home-create-project {
+	background: transparent;
+	border: 1px solid #5dbb6f;
+	border-radius: 3px;
+	color: #cce8cf;
+	cursor: pointer;
+	font: 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+	letter-spacing: .08em;
+	padding: 11px 16px;
+	text-transform: uppercase;
+	transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+
+.home-create-project:hover {
+	background: #2a9d49;
+	color: #fff;
+	transform: translateY(-2px);
+}
+
+.home-hero-actions .home-primary {
+	box-shadow: 0 12px 26px rgba(39, 159, 72, .24);
+	font-size: 14px;
+	padding: 17px 21px;
+}
+
+.home-hero-actions .home-primary span { font-size: 22px; }
+.home-hero-actions .home-primary:hover { box-shadow: 0 16px 34px rgba(39, 159, 72, .34); }
+
+.home-project-modal {
+	max-width: 560px;
+}
+
+.home-manifesto-trail i {
+	color: #59725d;
+	font-size: 15px;
+	font-style: normal;
+}
+
+@media (max-width: 760px) {
+	.home-manifesto {
+		align-items: center;
+		gap: 25px;
+	}
+}

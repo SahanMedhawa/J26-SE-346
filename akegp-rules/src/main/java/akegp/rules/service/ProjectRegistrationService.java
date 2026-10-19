@@ -17,4 +17,5 @@ public interface ProjectRegistrationService {
   RegisteredProject update(UUID id, ProjectUpdateRequest request);
 
   RegisteredProject updateStatus(UUID id, ProjectStatusUpdateRequest request);
+
 }
