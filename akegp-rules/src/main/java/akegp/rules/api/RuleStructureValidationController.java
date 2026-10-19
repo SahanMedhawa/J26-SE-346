@@ -50,7 +50,7 @@ public class RuleStructureValidationController {
     return validation.find(projectId, ruleUuid);
   }
 
-  /** Read-only PP1 ADR–rule fidelity check for the linked ADR decision text. */
+  /** Read-only ADR–rule fidelity check for the linked ADR decision text. */
   @GetMapping("/projects/{projectId}/rules/{ruleUuid}/adr-fidelity")
   public AdrRuleFidelityResponse adrFidelity(
       @PathVariable("projectId") UUID projectId, @PathVariable("ruleUuid") UUID ruleUuid) {

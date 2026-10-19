@@ -1,6 +1,6 @@
 package akegp.rules.domain;
 
-/** Deterministic PP1 ADR–rule fidelity outcome for one supported decision pattern. */
+/** Deterministic ADR–rule fidelity outcome for supported explicit decision patterns. */
 public enum AdrRuleFidelityStatus {
   MATCH,
   MISMATCH,

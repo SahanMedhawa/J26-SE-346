@@ -39,6 +39,13 @@ export function App() {
 				<Route path="validation" element={<RuleValidationPage />} />
 				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
 			</Route>
+			<Route path="/projects/:projectId/rules" element={<RulesPage/>}>
+				<Route index element={<Navigate replace to="architecture-rules" />} />
+				<Route path="adrs" element={<ADRManagementPage />} />
+				<Route path="architecture-rules" element={<ArchitectureRulesPage />} />
+				<Route path="validation" element={<RuleValidationPage />} />
+				<Route path="*" element={<Navigate replace to="architecture-rules" />} />
+			</Route>
 			<Route path="/settings" element={<SettingsPage/>}/>
 			<Route path="/conformance" element={<ScanHistoryPage/>}/>
 			<Route path="/conformance/graph" element={<ConformancePage/>}/>

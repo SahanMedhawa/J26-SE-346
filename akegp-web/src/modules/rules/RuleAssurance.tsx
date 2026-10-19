@@ -66,7 +66,6 @@ export function AdrFidelityResult({ projectId, ruleUuid, paused, refresh }: { pr
   return <div className={`validation-result fidelity-result ${tone}`}>
     <h4>ADR–Rule Fidelity: <span className={`assurance-status fidelity-status-${result.status.toLowerCase()}`}>{result.status}</span></h4>
     <p>{result.explanation}</p>
-    <p className="validation-hint">PP1 recognizes the explicit pattern &quot;&lt;Source&gt; must not directly access &lt;Target&gt;&quot;, including sources joined by &quot;and&quot; or commas and separate constraint sentences. Each linked rule is evaluated independently. This is not general natural-language understanding.</p>
     <dl>
       {result.adrDisplayId && <><dt>Linked ADR</dt><dd>{result.adrDisplayId}</dd></>}
       {!result.adrUuid && <><dt>Linked ADR</dt><dd>Unavailable</dd></>}

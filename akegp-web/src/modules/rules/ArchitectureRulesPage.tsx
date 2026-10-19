@@ -11,7 +11,6 @@ import {
   RuleDecision,
   RuleSeverity,
   adrsApi,
-  projectsApi,
   rulesApi,
 } from "../../shared/api/client";
 import { useSelectedProject } from "./rulesWorkspace";
@@ -25,15 +24,14 @@ const severities: RuleSeverity[] = ["HIGH", "MEDIUM", "LOW"];
 type Modal = "create" | "edit" | "details" | null;
 
 export function ArchitectureRulesPage() {
-  const { selectedProject: workspaceProject, setSelectedProject } = useSelectedProject();
+  const { selectedProject } = useSelectedProject();
+  const projectId = selectedProject?.id ?? "";
+  const projects = useMemo(() => selectedProject ? [selectedProject] : [], [selectedProject]);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const initialProjectId = useRef(params.get("projectId") ?? workspaceProject?.id);
   const editRuleUuid = params.get("editRule");
   const returnToValidation = params.get("returnTo") === "validation";
   const openedEdit = useRef<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState("");
   const [adrs, setAdrs] = useState<ADR[]>([]);
   const [rules, setRules] = useState<ArchitectureRule[]>([]);
   const [search, setSearch] = useState("");
@@ -49,28 +47,12 @@ export function ArchitectureRulesPage() {
 
   useEffect(() => {
     let active = true;
-    void projectsApi.list().then((loaded) => {
-      if (!active) return;
-      setProjects(loaded);
-      if (loaded.length) {
-        const project = loaded.find((item) => item.id === initialProjectId.current) ?? loaded[0];
-        setProjectId(project.id);
-        setSelectedProject(project);
-      }
-    }).catch((error) => setNotice({ text: getRuleError(error), success: false }));
-    return () => { active = false; };
-  }, [setSelectedProject]);
-
-  useEffect(() => {
-    let active = true;
     if (!projectId) {
       setRules([]);
       setAdrs([]);
       setLoadState("ready");
       return;
     }
-    const project = projects.find((item) => item.id === projectId);
-    if (project) setSelectedProject(project);
     setLoadState("loading");
     void Promise.all([rulesApi.list(projectId), adrsApi.list(projectId)]).then(([loadedRules, loadedAdrs]) => {
       if (!active) return;
@@ -83,10 +65,10 @@ export function ArchitectureRulesPage() {
       setNotice({ text: getRuleError(error), success: false });
     });
     return () => { active = false; };
-  }, [projectId, projects, setSelectedProject]);
+  }, [projectId]);
 
   useEffect(() => {
-    if (!editRuleUuid || !projectId || projectId !== params.get("projectId") || loadState !== "ready" || openedEdit.current === editRuleUuid) return;
+    if (!editRuleUuid || !projectId || loadState !== "ready" || openedEdit.current === editRuleUuid) return;
     let active = true;
     void rulesApi.get(projectId, editRuleUuid).then((rule) => {
       if (!active) return;
@@ -101,7 +83,6 @@ export function ArchitectureRulesPage() {
     return () => { active = false; };
   }, [editRuleUuid, loadState, params, projectId]);
 
-  const selectedProject = projects.find((project) => project.id === projectId);
   const visibleRules = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rules.filter((rule) => {
@@ -110,18 +91,11 @@ export function ArchitectureRulesPage() {
     });
   }, [decisionFilter, rules, search, severityFilter]);
 
-  function changeProject(id: string) {
-    setProjectId(id);
-    setSelectedRule(null);
-    setModal(null);
-    setNotice(null);
-  }
-
   async function openDetails(rule: ArchitectureRule) {
     setSelectedRule(rule);
     setModal("details");
     try {
-      setSelectedRule(await rulesApi.get(rule.projectId, rule.id));
+      setSelectedRule(await rulesApi.get(projectId, rule.id));
     } catch (error) {
       setModal(null);
       setNotice({ text: getRuleError(error), success: false });
@@ -160,7 +134,7 @@ export function ArchitectureRulesPage() {
     setNotice(null);
     try {
       if (editing && selectedRule) {
-        await rulesApi.update(selectedRule.projectId, selectedRule.id, input);
+        await rulesApi.update(projectId, selectedRule.id, input);
         setNotice({ text: "Architecture rule updated successfully.", success: true });
       } else {
         const created = await rulesApi.create(projectId, input);
@@ -169,7 +143,7 @@ export function ArchitectureRulesPage() {
       setModal(null);
       await reloadRules();
       if (editing && selectedRule && returnToValidation) {
-        navigate(`/rules/validation?${new URLSearchParams({ projectId: selectedRule.projectId, rule: selectedRule.id })}`);
+        navigate(`/projects/${encodeURIComponent(projectId)}/rules/validation?${new URLSearchParams({ rule: selectedRule.id })}`);
       }
     } catch (error) {
       setNotice({ text: getRuleError(error), success: false });
@@ -182,7 +156,7 @@ export function ArchitectureRulesPage() {
     if (!confirmDelete) return;
     setBusy(true);
     try {
-      await rulesApi.remove(confirmDelete.projectId, confirmDelete.id);
+      await rulesApi.remove(projectId, confirmDelete.id);
       setConfirmDelete(null);
       setNotice({ text: "Architecture rule deleted successfully.", success: true });
       await reloadRules();
@@ -201,7 +175,6 @@ export function ArchitectureRulesPage() {
         <button className="primary-button" type="button" disabled={!selectedProject || selectedProject.status !== "ACTIVE" || !adrs.length} onClick={() => { setSelectedRule(null); setModal("create"); }}><span aria-hidden="true">+</span> Create Rule</button>
       </div>
     </div>
-    <div className="rule-project-bar"><span>Architecture project</span><DarkSelect ariaLabel="Select architecture project" value={projectId} onChange={changeProject} options={[{ value: "", label: "Select project" }, ...projects.map((project) => ({ value: project.id, label: `${project.name}${project.status === "INACTIVE" ? " (Inactive)" : ""}` }))]} /></div>
     <div className="rule-controls">
       <label className="search-field"><span className="search-icon" aria-hidden="true">/</span><span className="visually-hidden">Search architecture rules</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search Rule ID, source, target, or description..." /></label>
       <DarkSelect ariaLabel="Filter rules by decision" value={decisionFilter} onChange={(value) => setDecisionFilter(value as RuleDecision | "all")} options={[{ value: "all", label: "All decisions" }, ...decisions.map((value) => ({ value, label: titleCase(value) }))]} />
@@ -215,7 +188,7 @@ export function ArchitectureRulesPage() {
     </tbody></table></div>
     {modal === "create" && <RuleModal title="Create Architecture Rule" onClose={() => setModal(null)}><RuleForm projects={adrs} rule={undefined} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, false)} /></RuleModal>}
     {modal === "edit" && selectedRule && <RuleModal title="Edit Architecture Rule" identifier={selectedRule.ruleId} onClose={() => setModal(null)}><RuleForm projects={adrs} rule={selectedRule} busy={busy} onCancel={() => setModal(null)} onSubmit={(event) => void submitRule(event, true)} /></RuleModal>}
-    {modal === "details" && selectedRule && <RuleDetails rule={selectedRule} project={selectedProject} adrs={adrs} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
+    {modal === "details" && selectedRule && <RuleDetails rule={selectedRule} project={selectedProject ?? undefined} adrs={adrs} onClose={() => setModal(null)} onEdit={() => setModal("edit")} />}
     {mappingsOpen && <ImplementationMappingsModal projects={projects} initialProjectId={projectId} onClose={() => setMappingsOpen(false)} />}
     {confirmDelete && <div className="modal-backdrop"><div className="project-modal confirmation-modal" role="alertdialog" aria-modal="true"><div className="modal-header"><h2>Delete architecture rule?</h2><button className="modal-close" type="button" onClick={() => setConfirmDelete(null)} aria-label="Close confirmation">x</button></div><div className="confirmation-content"><p>Are you sure you want to delete architecture rule <strong>{confirmDelete.ruleId}</strong>? This action cannot be undone.</p></div><div className="modal-actions"><button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>Cancel</button><button className="danger-button" type="button" disabled={busy} onClick={() => void deleteRule()}>{busy ? "Deleting..." : "Delete Rule"}</button></div></div></div>}
   </section>;
