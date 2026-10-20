@@ -65,6 +65,21 @@ export function RepositoryLookup() {
   </section>;
 }
 
+function useAnalyticsResult<T>(project: string, endpoint: string, params: Record<string, string> | null, revision: number) {
+  const key = params == null ? "" : JSON.stringify(params);
+  const [result, setResult] = useState<{ value: T | null; key: string; loading: boolean; error: string }>({ value: null, key: "", loading: false, error: "" });
+  useEffect(() => {
+    if (!key) { setResult({ value: null, key, loading: false, error: "" }); return; }
+    const abort = new AbortController();
+    setResult(previous => ({ ...previous, key, loading: true, error: "" }));
+    analyticsRequest<T>(project, endpoint, JSON.parse(key), abort.signal)
+      .then(value => { if (!abort.signal.aborted) setResult({ value, key, loading: false, error: "" }); })
+      .catch(e => { if (!abort.signal.aborted) setResult(previous => ({ ...previous, loading: false, error: e.message })); });
+    return () => abort.abort();
+  }, [project, endpoint, key, revision]);
+  return { ...result, loading: !!key && (result.key !== key || result.loading) };
+}
+
 export function AnalyticsWorkspace({ project, context = null, onImported }: { project: string; context?: ProjectContext | null; onImported?: () => void }) {
   const location = useLocation();
   const tab = location.pathname.endsWith("/hotspots") ? "hotspots" : location.pathname.endsWith("/lifecycle") ? "lifecycle" : location.pathname.endsWith("/history") ? "history" : "dashboard";
@@ -76,16 +91,13 @@ export function AnalyticsWorkspace({ project, context = null, onImported }: { pr
   const [current, setCurrent] = useState("");
   const [baseline, setBaseline] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [runLoading, setRunLoading] = useState(true);
   const [retry, setRetry] = useState(0);
-  const [comparison, setComparison] = useState<Comparison | null>(null);
-  const [ranking, setRanking] = useState<Ranking | null>(null);
-  const [explorer, setExplorer] = useState<Explorer | null>(null);
   const [state, setState] = useState("");
   const [offset, setOffset] = useState(0);
   const [rankOffset, setRankOffset] = useState(0);
   const [lifeOffset, setLifeOffset] = useState(0);
+  const [registerOffset, setRegisterOffset] = useState(0);
   const [window, setWindow] = useState({ mode: "runs", runs: "20", grouping: "SERVICE" });
   const [filters, setFilters] = useState({ service: "", rule: "", severity: "", search: "", from: "", to: "" });
   const [importing, setImporting] = useState(false);
@@ -108,43 +120,41 @@ export function AnalyticsWorkspace({ project, context = null, onImported }: { pr
   const branches = [...new Set(datasetRuns.map(r => r.branchRef))];
   const chosenBranch = branch && branches.includes(branch) ? branch : branches.find(b => b === "refs/heads/main") || branches[0] || "";
   const visibleRuns = datasetRuns.filter(r => r.branchRef === chosenBranch).sort((a, b) => a.sequence - b.sequence);
+  const registerPageOffset = Math.min(registerOffset, Math.max(0, Math.floor((visibleRuns.length - 1) / 10) * 10));
+  useEffect(() => { setRegisterOffset(0); }, [chosenDataset, chosenBranch]);
   useEffect(() => {
     if (!visibleRuns.some(r => r.id === current)) { setCurrent(visibleRuns[visibleRuns.length - 1]?.id || ""); setBaseline(""); }
   }, [runs, chosenDataset, chosenBranch, current]);
-  useEffect(() => {
-    if (!current) { setComparison(null); setRanking(null); setExplorer(null); setLoading(false); return; }
-    const abort = new AbortController(); setLoading(true); setError("");
-    setComparison(null); setRanking(null);
-    async function load() {
-      const params = windowParams(current, window, filters);
-      const r = await analyticsRequest<Ranking>(project, "hotspots", { ...params, offset: String(rankOffset), limit: "20" }, abort.signal);
-      if (abort.signal.aborted) return;
-      const effective = r.window.currentRunId;
-      if (!effective) {
-        setExplorer(null);
-        setRanking(r);
-        if (window.mode === "runs" && runs.find(run => run.id === current)?.analysisStatus !== "COMPLETE") {
-          const unavailable = await analyticsRequest<Comparison>(project, "comparisons", { currentRunId: current }, abort.signal);
-          if (!abort.signal.aborted) setComparison(unavailable);
-        }
-        return;
-      }
-      const compareParams: Record<string, string> = { currentRunId: effective, offset: String(offset), limit: "20" };
-      for (const key of ["service", "rule", "severity", "search"] as const) if (filters[key]) compareParams[key] = filters[key];
-      if (baseline && comparableBaselines(runs, effective).some(run => run.id === baseline)) compareParams.baselineRunId = baseline;
-      else if (baseline) setBaseline("");
-      if (state && tab === "lifecycle") compareParams.state = state;
-      const [c, e] = await Promise.all([
-        analyticsRequest<Comparison>(project, "comparisons", compareParams, abort.signal),
-        analyticsRequest<Explorer>(project, "explorer", { ...params, offset: String(lifeOffset), limit: "20" }, abort.signal),
-      ]);
-      if (!abort.signal.aborted) { setComparison(c); setExplorer(e); setRanking(r); }
+  let params: Record<string, string> | null = null;
+  let selectionError = "";
+  let effective: Run | undefined;
+  try {
+    if (current) {
+      params = windowParams(current, window, filters);
+      const anchor = runs.find(r => r.id === current);
+      effective = anchor && runs.filter(r => r.streamKey === anchor.streamKey && r.sequence <= anchor.sequence
+        && (!params!.from || (Date.parse(r.analyzedAt) >= Date.parse(params!.from) && Date.parse(r.analyzedAt) < Date.parse(params!.to))))
+        .sort((a, b) => a.sequence - b.sequence).slice(-1)[0];
     }
-    load().catch(e => { if (!abort.signal.aborted) setError(e.message); })
-      .finally(() => { if (!abort.signal.aborted) setLoading(false); });
-
-    return () => abort.abort();
-  }, [project, current, baseline, state, offset, rankOffset, lifeOffset, window, filters, tab, retry]);
+  } catch (e) { selectionError = e instanceof Error ? e.message : "Invalid analysis window"; }
+  const compareParams: Record<string, string> | null = effective && (effective.analysisStatus === "COMPLETE" || window.mode === "runs")
+    ? { currentRunId: effective.id, offset: String(offset), limit: "20" } : null;
+  if (compareParams) {
+    for (const key of ["service", "rule", "severity", "search"] as const) if (filters[key]) compareParams[key] = filters[key];
+    if (baseline && comparableBaselines(runs, effective!.id).some(r => r.id === baseline)) compareParams.baselineRunId = baseline;
+    if (state && tab === "lifecycle") compareParams.state = state;
+  }
+  const rankQuery = useAnalyticsResult<Ranking>(project, "hotspots", params ? { ...params, offset: String(rankOffset), limit: "20" } : null, retry);
+  const explorerParams: Record<string, string> | null = params && effective?.analysisStatus === "COMPLETE" ? { ...params, offset: String(lifeOffset), limit: "10" } : null;
+  if (explorerParams) delete explorerParams.grouping;
+  const historyQuery = useAnalyticsResult<Explorer>(project, "explorer", explorerParams, retry);
+  const compareQuery = useAnalyticsResult<Comparison>(project, "comparisons", compareParams, retry);
+  const ranking = rankQuery.value;
+  const explorer = historyQuery.value;
+  const comparison = compareQuery.value;
+  const loading = rankQuery.loading || historyQuery.loading || compareQuery.loading;
+  const requestError = error || selectionError || rankQuery.error || historyQuery.error || compareQuery.error;
+  const hasResults = !!(ranking || explorer || comparison);
   async function seed() {
     setImporting(true); setNotice(""); setError("");
     try { const result = await importProjectDemo(project); setDataset(result.dataset); setBranch("refs/heads/main"); setCurrent("");
@@ -190,11 +200,12 @@ export function AnalyticsWorkspace({ project, context = null, onImported }: { pr
       <button type="button" onClick={() => { setFilters(f => ({ ...f, service: "", rule: "", severity: "", search: "" })); setLifeOffset(0); setOffset(0); setRankOffset(0); }}>Clear filters</button>
     </form>}
     {selected && <details className="analytics-run-details"><summary>Run metadata · {selected.analysisStatus} · {selected.analyzedAt.slice(0, 10)}</summary><p className="analytics-meta">{selected.analyzedAt} · {selected.branchRef} · Pipeline {selected.pipelineOutcome || "unavailable"} · Gate {selected.gateOutcome || "unavailable"}<br />Commit {selected.commitRef} · Dataset {selected.dataset || "recorded"}<br />Rules {selected.ruleSetVersion} · Detector {selected.detectorVersion}</p></details>}
-    {error ? <div role="alert" className="analytics-error"><h2>Analytics could not be loaded</h2><p>{error}</p><p>The requested history was not substituted with another dataset.</p></div>
-      : runLoading || loading ? <p role="status" className="analytics-panel">Loading analytics…</p>
-      : !runs.length ? <section className="analytics-panel"><h2>No snapshots yet</h2><p>This project has no analytics snapshots. Load project history under Data sources, or ingest complete conformance snapshots.</p>{!context && <Link to={`/analytics/dashboard?projectId=${DEMO_PROJECT}`}>Open reference fixture</Link>}</section>
+    {requestError && <div role="alert" className="analytics-error"><h2>Analytics could not be loaded</h2><p>{requestError}</p><p>The requested history was not substituted with another dataset.</p></div>}
+    {(runLoading || loading) && hasResults && <p role="status" className="analytics-meta">Updating analytics… Previous results remain visible until their replacements arrive.</p>}
+    {runLoading || (loading && !hasResults) ? <p role="status" className="analytics-panel">Loading analytics…</p>
+      : requestError && !hasResults ? null : !runs.length ? <section className="analytics-panel"><h2>No snapshots yet</h2><p>This project has no analytics snapshots. Load project history under Data sources, or ingest complete conformance snapshots.</p>{!context && <Link to={`/analytics/dashboard?projectId=${DEMO_PROJECT}`}>Open reference fixture</Link>}</section>
       : <>
-        {!comparison && !explorer && <section className="analytics-panel"><h2>No comparable snapshots in this window</h2><p>{ranking?.window.boundaryReason || "Select a complete analysis run and a valid period."}</p></section>}
+        {!loading && !comparison && !explorer && <section className="analytics-panel"><h2>No comparable snapshots in this window</h2><p>{ranking?.window.boundaryReason || "Select a complete analysis run and a valid period."}</p></section>}
         {tab === "dashboard" && comparison && !explorer && <ComparisonSummary comparison={comparison} runName={runName} />}
         {tab === "dashboard" && explorer && <>
           <div className="analytics-section-title"><h2>Architecture drift overview</h2><span>{explorer.completeRuns} complete / {explorer.incompleteRuns} incomplete runs in range</span></div>
@@ -217,17 +228,17 @@ export function AnalyticsWorkspace({ project, context = null, onImported }: { pr
           {!comparison.comparable ? <p>{comparison.reason}. Predecessor classification is unavailable.</p> : <><div className="analytics-table-wrap"><table><thead><tr><th>State</th><th>Rule</th><th>Service</th><th>Severity</th><th>Evidence</th></tr></thead><tbody>{comparison.violations.map(v => <tr key={v.finding.identity}><td>{v.state}</td><td>{v.finding.ruleName}</td><td>{v.finding.entityName}</td><td>{v.finding.severity}</td><td>{v.finding.location}<small>{v.finding.message}</small></td></tr>)}</tbody></table></div><Pagination offset={offset} total={comparison.totalResults} onChange={setOffset} /></>}</section></>}
           {explorer && <section className="analytics-panel"><h2>Historical violation identities</h2><p>Filtered observations in the date range. Streak ends at the selected run and stops at incomplete/version boundaries. A returning violation is new in that comparison and retains its historical identity.</p>
             <div className="analytics-table-wrap"><table><thead><tr><th>Finding / evidence</th><th>First / last observed (UTC)</th><th>Occurrences</th><th>Current streak</th><th>Recurrence</th><th>Timeline</th></tr></thead><tbody>{explorer.lifecycles.map(l => <tr key={l.finding.identity}><td>{l.finding.ruleName}<small>{l.finding.location}</small><small>{l.active ? "Active at selected run" : "Absent at selected run"}</small></td><td>{l.firstSeen.slice(0, 10)}<br />{l.lastSeen.slice(0, 10)}</td><td>{l.occurrences} / {l.observedRuns} complete runs</td><td>{l.currentStreak}</td><td>{(l.recurrence * 100).toFixed(1)}%</td><td><button aria-expanded={expanded === l.finding.identity} onClick={() => setExpanded(expanded === l.finding.identity ? "" : l.finding.identity)}>Inspect</button>{expanded === l.finding.identity && <div><code>{l.finding.identity}</code><p>{l.finding.message}</p><div className="analytics-lifecycle-strip">{l.timeline.map(o => <button key={o.runId} className={`analytics-observation ${o.state.toLowerCase()}`} title={`${o.run} · ${o.state} · ${o.at}`} onClick={() => setCurrent(o.runId)}>{runLabel(o.run)}<small>{o.state}</small></button>)}</div></div>}</td></tr>)}</tbody></table></div>
-            {!explorer.totalLifecycles && <p>No findings match these filters.</p>}<Pagination offset={lifeOffset} total={explorer.totalLifecycles} onChange={setLifeOffset} />
+            {!explorer.totalLifecycles && <p>No findings match these filters.</p>}<Pagination offset={lifeOffset} total={explorer.totalLifecycles} pageSize={10} onChange={setLifeOffset} />
           </section>}
         </>}
         {tab === "hotspots" && <>
           <p className="analytics-meta">The selected window is shared with Dashboard and Lifecycle. Module rankings project the same findings onto mapped source directories; counts are not duplicated.</p>
           {explorer && <HistoryChart title="Active violations in the ranking window" points={points} series={[{ key: "total", label: "Active violations" }]} onSelect={setCurrent} />}
-          {ranking && <><div className="analytics-panel"><h2>Hotspot priorities</h2>{ranking.rows.map(row => <button className="analytics-rank-bar" key={row.entityId} onClick={() => { setLifeOffset(0); setOffset(0); setRankOffset(0); setFilters(f => ({ ...f, ...(ranking.grouping === "RULE" ? { rule: row.entityId } : ranking.grouping === "MODULE" ? { search: row.entityId } : { service: row.entityId }) })); setNotice(`Finding filter set to ${row.entityName}. Open Lifecycle to inspect.`); }}><span>{row.entityName}</span><span className="analytics-rank-track"><i style={{ width: `${row.score * 100}%` }} /></span><b>{row.score.toFixed(3)}</b></button>)}</div><HotspotTable ranking={ranking} currentName={runName(ranking.window.currentRunId)} onPage={setRankOffset} /></>}
+          {ranking && <><div className="analytics-panel"><h2>Hotspot priorities</h2>{ranking.rows.map(row => <button className="analytics-rank-bar" key={row.entityId} onClick={() => { setLifeOffset(0); setOffset(0); setRankOffset(0); setFilters(f => ({ ...f, ...(ranking.grouping === "RULE" ? { rule: row.entityId } : ranking.grouping === "MODULE" ? { search: row.entityId } : { service: row.entityId }) })); setNotice(`Finding filter set to ${row.entityName}. Open Lifecycle to inspect.`); }}><span>{row.entityName}</span><span className="analytics-rank-track"><i style={{ width: `${row.score * 100}%` }} /></span><b>{row.score.toFixed(3)}</b></button>)}</div><HotspotTable ranking={ranking} currentName={runName(ranking.window.currentRunId)} onPage={setRankOffset} /><RecurringViolations ranking={ranking} /></>}
         </>}
       </>}
     {tab === "history" && <>
-      <section className="analytics-panel"><h2>Full branch snapshot register</h2><p>{visibleRuns.length} runs · {chosenDataset === "recorded" ? "Recorded snapshots" : "Project history"} · {chosenBranch}</p><div className="analytics-table-wrap"><table><thead><tr><th>Run / UTC time</th><th>Commit</th><th>Analysis</th><th>Pipeline / gate</th><th>Active</th><th>Inspect</th></tr></thead><tbody>{[...visibleRuns].reverse().map(r => <tr key={r.id}><td>{runLabel(r.externalRunId)}<small>{r.analyzedAt}</small></td><td><code>{r.commitRef}</code></td><td>{r.analysisStatus}</td><td>{r.pipelineOutcome} / {r.gateOutcome}</td><td>{displayCount(r.total)}</td><td><Link to={link("lifecycle")} onClick={() => setCurrent(r.id)}>Compare →</Link></td></tr>)}</tbody></table></div></section>
+      <section className="analytics-panel"><h2>Full branch snapshot register</h2><p>{visibleRuns.length} runs · {chosenDataset === "recorded" ? "Recorded snapshots" : "Project history"} · {chosenBranch}</p><div className="analytics-table-wrap"><table><thead><tr><th>Run / UTC time</th><th>Commit</th><th>Analysis</th><th>Pipeline / gate</th><th>Active</th><th>Inspect</th></tr></thead><tbody>{[...visibleRuns].reverse().slice(registerPageOffset, registerPageOffset + 10).map(r => <tr key={r.id}><td>{runLabel(r.externalRunId)}<small>{r.analyzedAt}</small></td><td><code>{r.commitRef}</code></td><td>{r.analysisStatus}</td><td>{r.pipelineOutcome} / {r.gateOutcome}</td><td>{displayCount(r.total)}</td><td><Link to={link("lifecycle")} onClick={() => setCurrent(r.id)}>Compare →</Link></td></tr>)}</tbody></table></div><Pagination offset={registerPageOffset} total={visibleRuns.length} pageSize={10} onChange={setRegisterOffset} /></section>
       {context && <ProjectEvidence context={context} />}
     </>}
   </>;
@@ -288,15 +299,51 @@ export function HotspotTable({ ranking: r, currentName, onPage }: { ranking: Ran
     <p className="analytics-meta">W = {r.window.actualRuns} · Current: {currentName} · Cohort: {r.cohortSize} {r.grouping.toLowerCase()} entities<br />{r.window.boundaryReason}{r.window.limitedHistory && " · Limited history: one run"}</p>
     {r.status === "INSUFFICIENT_DATA" ? <p>Insufficient data for this window.</p> : !r.cohortSize ? <p>No entities have violations in the selected cohort/window.</p> : <>
       <p className="analytics-meta">Weights: frequency 2/6, severity 3/6, persistence 1/6. A zero normalized factor does not necessarily mean no violations.</p>
-      <div className="analytics-table-wrap"><table><thead><tr><th>Entity</th><th>Occurrences</th><th>Active</th><th>Recurrence</th><th>Score / 1</th><th>Explanation</th></tr></thead><tbody>{r.rows.map(row => <tr key={row.entityId}>
-        <td>{row.entityName}<small>{row.entityId}</small></td><td>{row.rawFrequency}</td><td>{row.activeCount}{!row.activeCount && <small>Inactive now</small>}</td><td>{(row.recurrence * 100).toFixed(1)}%</td>
+      <div className="analytics-table-wrap"><table><thead><tr><th>Entity</th><th>Occurrences</th><th>Active</th><th>Score / 1</th><th>Explanation</th></tr></thead><tbody>{r.rows.map(row => <tr key={row.entityId}>
+        <td>{row.entityName}<small>{row.entityId}</small></td><td>{row.rawFrequency}</td><td>{row.activeCount}{!row.activeCount && <small>Inactive now</small>}</td>
         <td><strong>{row.score.toFixed(3)}</strong><meter min="0" max="1" value={row.score} aria-label={`${row.entityName} hotspot score`} /></td>
-        <td><details><summary>Show factors</summary><dl><dt>Frequency F (cohort min {r.frequencyMin}, max {r.frequencyMax})</dt><dd>{row.normalizedFrequency.toFixed(4)} × {r.weights.frequency.toFixed(4)} = {row.contributions.frequency.toFixed(4)}</dd><dt>Average severity / normalized S</dt><dd>{row.averageSeverity.toFixed(4)} / {row.normalizedSeverity.toFixed(4)}; contribution {row.contributions.severity.toFixed(4)}</dd><dt>Active persistence P</dt><dd>{row.persistence.toFixed(4)}; contribution {row.contributions.persistence.toFixed(4)}</dd></dl><p>Recurrence is a separate diagnostic and is not added to the score.</p>{row.violations.map(v => <p key={v.identity}><code title={v.identity}>{v.identity.slice(0, 12)}</code>: streak {v.currentStreak}/{r.window.actualRuns}; recurrence {(v.recurrence * 100).toFixed(1)}%</p>)}</details></td>
+        <td><HotspotFactors row={row} ranking={r} /></td>
       </tr>)}</tbody></table></div><Pagination offset={r.offset} total={r.cohortSize} onChange={onPage} />
     </>}
   </section>;
 }
 
-function Pagination({ offset, total, onChange }: { offset: number; total: number; onChange: (offset: number) => void }) {
-  return <div className="analytics-pagination"><button disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - 20))}>Previous</button><span>{total ? offset + 1 : 0}–{Math.min(offset + 20, total)} of {total}</span><button disabled={offset + 20 >= total} onClick={() => onChange(offset + 20)}>Next</button></div>;
+export function HotspotFactors({ row, ranking: r }: { row: Ranking["rows"][number]; ranking: Ranking }) {
+  const w = r.window.actualRuns;
+  const active = row.violations.filter(v => v.currentStreak > 0);
+  const streakTotal = active.reduce((sum, v) => sum + v.currentStreak, 0);
+  const number = (value: number) => value.toFixed(6);
+  return <details className="analytics-score-details"><summary>Show factors</summary>
+    <p>Score = (2 × F + 3 × S + P) / 6. W = {w} comparable runs.</p>
+    <dl><dt>1. Frequency F</dt><dd>Occurrences across the window: {row.rawFrequency}. Cohort minimum: {r.frequencyMin}; maximum: {r.frequencyMax}.
+      <p>{r.frequencyMax === r.frequencyMin ? "All entities have equal frequency, so F = 0." : `F = (${row.rawFrequency} − ${r.frequencyMin}) / (${r.frequencyMax} − ${r.frequencyMin}) ≈ ${number(row.normalizedFrequency)}`}</p>
+      Contribution: F × 2/6 ≈ {number(row.contributions.frequency)}.</dd>
+    <dt>2. Severity S</dt><dd>High = 3, Medium = 2, Low = 1. Each violation occurrence contributes its recorded severity.
+      <p>Average severity = severity sum / occurrences = {Math.round(row.averageSeverity * row.rawFrequency)} / {row.rawFrequency} ≈ {number(row.averageSeverity)}.</p>
+      <p>S = (average severity − 1) / (3 − 1) = ({number(row.averageSeverity)} − 1) / 2 ≈ {number(row.normalizedSeverity)}.</p>
+      Contribution: S × 3/6 ≈ {number(row.contributions.severity)}.</dd>
+    <dt>3. Active persistence P</dt><dd>For each currently active violation, divide its consecutive ending streak by W, then average those fractions. Historical violations that are absent now contribute no active streak.
+      {active.map(v => <p key={v.identity}><span title={`Full violation ID: ${v.identity}`}>Violation {row.violations.findIndex(item => item.identity === v.identity) + 1}</span>: {v.currentStreak}/{w} ≈ {number(v.currentStreak / w)}</p>)}
+      <p>{row.activeCount ? `P = ${streakTotal} / (${w} × ${row.activeCount} active violations) ≈ ${number(row.persistence)}.` : "No active violations: P = 0."}</p>
+      Contribution: P × 1/6 ≈ {number(row.contributions.persistence)}.</dd>
+    <dt>4. Add the contributions</dt><dd>{number(row.contributions.frequency)} + {number(row.contributions.severity)} + {number(row.contributions.persistence)} ≈ <strong>{number(row.score)}</strong>.
+      <p>Displayed score: {row.score.toFixed(3)}. Values above are rounded; calculations retain full precision.</p></dd></dl>
+  </details>;
+}
+
+export function RecurringViolations({ ranking: r }: { ranking: Ranking }) {
+  const w = r.window.actualRuns;
+  return <section className="analytics-panel"><h2>Recurring violations</h2>
+    <p>Observed runs / W = recurrence rate. W = {w} comparable runs in the selected analysis window. Recurrence is separate from the hotspot score.</p>
+    <p>An identity observed in more than one run is repeated here; this includes persistent violations and does not by itself mean a violation was resolved and returned.</p>
+    {!w || !r.rows.length ? <p>No recurrence observations in this window.</p> : <div className="analytics-table-wrap"><table><thead><tr><th>Entity</th><th>Runs with any violation</th><th>Entity recurrence</th><th>Repeated identities</th></tr></thead><tbody>{r.rows.map(row => {
+      const repeated = row.violations.filter(v => Math.round(v.recurrence * w) > 1);
+      return <tr key={row.entityId}><td>{row.entityName}</td><td>{Math.round(row.recurrence * w)} / {w}</td><td>{(row.recurrence * 100).toFixed(1)}%</td><td>{repeated.length ? <details><summary>Show recurring violations ({repeated.length})</summary>{repeated.map(v => <p key={v.identity}><span title={`Full violation ID: ${v.identity}`}>Violation {row.violations.findIndex(item => item.identity === v.identity) + 1}</span>: {Math.round(v.recurrence * w)} / {w} runs = {(v.recurrence * 100).toFixed(1)}%</p>)}</details> : "None observed more than once"}</td></tr>;
+    })}</tbody></table></div>}
+    <p className="analytics-meta">Violation numbers refer to identities within each entity in this window and match the persistence explanation. Hover over a label for its full ID. Identity percentages count each comparable run once. Entities follow the current ranking page.</p>
+  </section>;
+}
+
+function Pagination({ offset, total, pageSize = 20, onChange }: { offset: number; total: number; pageSize?: number; onChange: (offset: number) => void }) {
+  return <div className="analytics-pagination"><button disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - pageSize))}>Previous</button><span>{total ? offset + 1 : 0}–{Math.min(offset + pageSize, total)} of {total}</span><button disabled={offset + pageSize >= total} onClick={() => onChange(offset + pageSize)}>Next</button></div>;
 }

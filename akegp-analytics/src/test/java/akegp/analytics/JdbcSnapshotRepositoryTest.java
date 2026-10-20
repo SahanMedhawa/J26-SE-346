@@ -56,6 +56,22 @@ class JdbcSnapshotRepositoryTest {
     assertEquals(3, runCount(p));
   }
 
+  @Test void cachedReadDetectsNewSnapshotsWithoutLosingHistoricalFindings() {
+    UUID project = UUID.randomUUID();
+    var ingestion = service(ModelsDemoFixture.SOURCE, project);
+    var cache = new akegp.analytics.repository.ProjectHistoryReadCache(ds,
+        new akegp.analytics.repository.JdbcAnalyticsReadRepository(ds));
+    ingestion.ingest(run(project, "first", 1, List.of(ModelsDemoFixture.finding("A"))));
+    var first = cache.readProject(project);
+    assertEquals(1, first.getFirst().findings().size());
+    assertSame(first, cache.readProject(project));
+    ingestion.ingest(run(project, "second", 2, List.of()));
+    var updated = cache.readProject(project);
+    assertEquals(2, updated.size());
+    assertEquals(1, updated.getFirst().findings().size());
+    assertEquals(0, updated.getLast().findings().size());
+  }
+
   @Test void crossRunIdentityConflictRollsBackEntireRun() throws Exception {
     UUID p = UUID.randomUUID();
     var source = new AdapterSource("verified-test", AdapterSource.Provenance.UPSTREAM, "", true);
