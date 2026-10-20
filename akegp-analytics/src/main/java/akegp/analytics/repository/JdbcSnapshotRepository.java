@@ -82,27 +82,49 @@ public final class JdbcSnapshotRepository implements SnapshotRepository {
           s.scopeVersion(), scope, s.analysisStatus().name(), s.resultMode().name(), s.pipelineOutcome(),
           s.gateOutcome(), s.loc() == null ? null : s.loc().lines(), n.payloadHash(), n.payload(), n.occurrences().size());
     } finally { scope.free(); }
-    // Sorted identities give deterministic lock order even across different branch streams.
-    for (var o : n.occurrences()) {
-      var f = o.finding();
-      execute(c, """
-          INSERT INTO analytics_private.identities
-          (identity_key,identity_namespace,structural_tuple,upstream_id,rule_key,entity_type,
-          entity_key,finding_kind,source_key,target_key,relation)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (identity_key) DO NOTHING
-          """, o.identityKey(), n.identityNamespace(), o.structure(), f.stableUpstreamId(), f.ruleKey(),
-          f.entityType(), f.entityKey(), f.findingKind(), f.sourceKey(), f.targetKey(), f.relation());
-      try (var q = statement(c, "SELECT identity_namespace,structural_tuple FROM analytics_private.identities WHERE identity_key=?", o.identityKey());
-           var rs = q.executeQuery()) {
-        if (!rs.next() || !rs.getString(1).equals(n.identityNamespace()) || !rs.getString(2).equals(o.structure()))
-          throw new IngestionException(CONFLICT, "Stable identity reused for conflicting structure");
+    // Batch writes avoid a cloud round trip per finding. Sorted identities preserve lock order.
+    try (var identities = c.prepareStatement("""
+        INSERT INTO analytics_private.identities
+        (identity_key,identity_namespace,structural_tuple,upstream_id,rule_key,entity_type,
+        entity_key,finding_kind,source_key,target_key,relation)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT (identity_key) DO NOTHING
+        """)) {
+      for (var o : n.occurrences()) {
+        var f = o.finding();
+        bind(identities, o.identityKey(), n.identityNamespace(), o.structure(), f.stableUpstreamId(), f.ruleKey(),
+            f.entityType(), f.entityKey(), f.findingKind(), f.sourceKey(), f.targetKey(), f.relation());
+        identities.addBatch();
       }
-      execute(c, """
-          INSERT INTO analytics_private.occurrences
-          (run_id,identity_key,rule_key,rule_name,entity_type,entity_key,entity_name,severity,display_location,message)
-          VALUES (?,?,?,?,?,?,?,?,?,?)
-          """, runId, o.identityKey(), f.ruleKey(), f.ruleName(), f.entityType(), f.entityKey(),
-          f.entityName(), f.severity(), f.displayLocation(), f.message());
+      identities.executeBatch();
+    }
+    if (!n.occurrences().isEmpty()) {
+      var keys = c.createArrayOf("text", n.occurrences().stream().map(CanonicalSnapshot.Occurrence::identityKey).toArray(String[]::new));
+      try (var q = c.prepareStatement("SELECT identity_key,identity_namespace,structural_tuple FROM analytics_private.identities WHERE identity_key = ANY (?)")) {
+        q.setArray(1, keys);
+        var expected = new java.util.HashMap<String, String>();
+        n.occurrences().forEach(o -> expected.put(o.identityKey(), o.structure()));
+        try (var rs = q.executeQuery()) {
+          while (rs.next()) {
+            String structure = expected.remove(rs.getString(1));
+            if (!n.identityNamespace().equals(rs.getString(2)) || !rs.getString(3).equals(structure))
+              throw new IngestionException(CONFLICT, "Stable identity reused for conflicting structure");
+          }
+        }
+        if (!expected.isEmpty()) throw new IngestionException(CONFLICT, "Missing stable identities");
+      } finally { keys.free(); }
+    }
+    try (var occurrences = c.prepareStatement("""
+        INSERT INTO analytics_private.occurrences
+        (run_id,identity_key,rule_key,rule_name,entity_type,entity_key,entity_name,severity,display_location,message)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
+        """)) {
+      for (var o : n.occurrences()) {
+        var f = o.finding();
+        bind(occurrences, runId, o.identityKey(), f.ruleKey(), f.ruleName(), f.entityType(), f.entityKey(),
+            f.entityName(), f.severity(), f.displayLocation(), f.message());
+        occurrences.addBatch();
+      }
+      occurrences.executeBatch();
     }
     return new Receipt(runId, false, n.occurrences().size(), source.provenance().name(), source.label());
   }
@@ -110,9 +132,12 @@ public final class JdbcSnapshotRepository implements SnapshotRepository {
   private static PreparedStatement statement(Connection c, String sql, Object... args) throws SQLException {
     var result = c.prepareStatement(sql);
     try {
-      for (int i = 0; i < args.length; i++) result.setObject(i + 1, args[i]);
+      bind(result, args);
       return result;
     } catch (SQLException e) { result.close(); throw e; }
+  }
+  private static void bind(PreparedStatement statement, Object... args) throws SQLException {
+    for (int i = 0; i < args.length; i++) statement.setObject(i + 1, args[i]);
   }
   private static void execute(Connection c, String sql, Object... args) throws SQLException {
     try (var q = statement(c, sql, args)) { q.executeUpdate(); }

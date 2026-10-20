@@ -22,8 +22,10 @@ public class AnalyticsController {
       Principal principal, @PathVariable("projectId") UUID project,
       @RequestParam("currentRunId") UUID current, @RequestParam(value="baselineRunId", required=false) UUID baseline,
       @RequestParam(value="state", required=false) RunComparisonService.State state,
-      @RequestParam(value="offset", defaultValue="0") int offset, @RequestParam(value="limit", defaultValue="50") int limit) {
-    return queries.compare(principal, project, current, baseline, state, offset, limit);
+      @RequestParam(value="offset", defaultValue="0") int offset, @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="service", required=false) String service, @RequestParam(value="rule", required=false) String rule,
+      @RequestParam(value="severity", required=false) Integer severity, @RequestParam(value="search", required=false) String search) {
+    return queries.compareFiltered(principal, project, current, baseline, state, offset, limit, service, rule, severity, search);
   }
   @GetMapping("/trends") public List<RunComparisonService.Comparison> trend(Principal principal,
       @PathVariable("projectId") UUID project, @RequestParam("currentRunId") UUID current) {
@@ -34,11 +36,22 @@ public class AnalyticsController {
       @RequestParam(value="runs", defaultValue="5") int n,
       @RequestParam(value="from", required=false) Instant from, @RequestParam(value="to", required=false) Instant to,
       @RequestParam(value="grouping", defaultValue="SERVICE") HotspotRankingService.Grouping grouping,
-      @RequestParam(value="offset", defaultValue="0") int offset, @RequestParam(value="limit", defaultValue="50") int limit) {
-    return queries.hotspots(principal, project, current, n, from, to, grouping, offset, limit);
+      @RequestParam(value="offset", defaultValue="0") int offset, @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="service", required=false) String service, @RequestParam(value="rule", required=false) String rule,
+      @RequestParam(value="severity", required=false) Integer severity, @RequestParam(value="search", required=false) String search) {
+    return queries.hotspotsFiltered(principal, project, current, n, from, to, grouping, offset, limit, service, rule, severity, search);
   }
   @ExceptionHandler(SecurityException.class) ResponseEntity<Map<String, String>> forbidden() {
     return ResponseEntity.status(403).body(Map.of("message", "Analytics access denied for this project."));
+  }
+  @GetMapping("/explorer") public akegp.analytics.service.HistoryExplorer.Result explorer(Principal principal,
+      @PathVariable("projectId") UUID project, @RequestParam("currentRunId") UUID current,
+      @RequestParam(value="service", required=false) String service, @RequestParam(value="rule", required=false) String rule,
+      @RequestParam(value="severity", required=false) Integer severity, @RequestParam(value="search", required=false) String search,
+      @RequestParam(value="from", required=false) Instant from, @RequestParam(value="to", required=false) Instant to,
+      @RequestParam(value="offset", defaultValue="0") int offset, @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="runs", required=false) Integer runs) {
+    return queries.exploreWindow(principal, project, current, service, rule, severity, search, from, to, offset, limit, runs);
   }
   @ExceptionHandler(IllegalArgumentException.class) ResponseEntity<Map<String, String>> invalid(IllegalArgumentException e) {
     return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
