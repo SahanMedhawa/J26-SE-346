@@ -34,7 +34,10 @@ public final class JdbcAnalyticsReadRepository implements AnalyticsReadRepositor
         }
         List<AnalyticsRun> result = new ArrayList<>();
         try (var q = c.prepareStatement("""
-            SELECT r.*,s.project_id,s.repository_id,s.branch_ref,s.provenance,s.dataset
+            SELECT r.id,r.external_run_id,r.analysis_sequence,r.analyzed_at,r.commit_ref,r.analysis_status,
+              r.pipeline_outcome,r.gate_outcome,r.rule_set_version,r.detector_version,r.mapping_version,
+              r.scope_version,r.identity_version,r.analyzed_scope,r.loc,
+              s.stream_key,s.project_id,s.repository_id,s.branch_ref,s.provenance,s.dataset
             FROM analytics_private.runs r JOIN analytics_private.streams s USING(stream_key)
             WHERE s.project_id=? ORDER BY r.stream_key,r.analysis_sequence
             """)) {

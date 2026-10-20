@@ -29,7 +29,7 @@ function text(node) {
   if (typeof node !== 'object') return String(node);
   return React.Children.toArray(node.props?.children).map(text).join(' ');
 }
-function mount(request) {
+function mount(request, pathname = '/analytics/dashboard') {
   let cursor = 0, changed = false, tree;
   const slots = [], effects = [], calls = [];
   const hooks = { ...React,
@@ -45,14 +45,74 @@ function mount(request) {
       }
     },
   };
-  const { AnalyticsWorkspace } = ui({ react: hooks, 'react-router-dom': { useLocation: () => ({ pathname: '/analytics/dashboard' }), Link: 'a' },
+  const { AnalyticsWorkspace } = ui({ react: hooks, 'react-router-dom': { useLocation: () => ({ pathname }), Link: 'a' },
     './api': { ...load('api.ts'), analyticsRequest: (...args) => { calls.push(args); return request(...args); } } });
   function render() { let loops = 0; do { assert.ok(loops++ < 20); cursor = 0; changed = false;
     tree = AnalyticsWorkspace({ project: 'test-project' }); while (effects.length) effects.shift()(); } while (changed); }
   render();
   return { calls, get text() { return text(tree); }, async flush() { for (let i = 0; i < 5; i++) { await new Promise(setImmediate); render(); } },
+    change(label, value) {
+      function visit(node) {
+        if (!node || typeof node !== 'object') return false;
+        const children = React.Children.toArray(node.props?.children);
+        if (node.type === 'label' && children[0] === label) {
+          children.find(child => child.type === 'select').props.onChange({ target: { value } }); return true;
+        }
+        return children.some(visit);
+      }
+      assert.ok(visit(tree), `Missing control ${label}`); render();
+    },
     close() { slots.forEach(s => s.cleanup?.()); } };
 }
+
+function historyResponse(_project, endpoint) {
+  if (endpoint === 'runs') return [80,84].map(n => ({ id: `r${n}`, externalRunId: `Run ${n}`, sequence: n,
+    streamKey: 'main', provenance: 'UPSTREAM', dataset: '', branchRef: 'refs/heads/main',
+    analyzedAt: '2026-10-19T09:00:00Z', analysisStatus: 'COMPLETE', scope: [] }));
+  if (endpoint === 'comparisons') return { currentRunId: 'r84', violations: [], reason: 'Complete snapshots', comparable: true };
+  if (endpoint === 'explorer') return { points: [], lifecycles: [], services: ['Service'], rules: ['Rule'], completeRuns: 2, incompleteRuns: 0 };
+  return { rows: [], grouping: 'SERVICE', window: { currentRunId: 'r84', runIds: ['r80','r84'], actualRuns: 2 } };
+}
+
+test('transition state and baseline update only comparisons and keep existing sections visible', async () => {
+  let release;
+  let pending = false;
+  const h = mount((...args) => pending && args[1] === 'comparisons'
+    ? new Promise(resolve => { release = () => resolve(historyResponse(...args)); }) : Promise.resolve(historyResponse(...args)), '/analytics/lifecycle');
+  await h.flush(); h.calls.length = 0; pending = true;
+  h.change('State', 'NEW'); await h.flush();
+  assert.deepEqual(h.calls.map(c => c[1]), ['comparisons']);
+  assert.equal(h.calls[0][2].state, 'NEW');
+  assert.match(h.text, /Selected run transitions/);
+  assert.match(h.text, /Updating analytics/);
+  assert.doesNotMatch(h.text, /Loading analytics/);
+  release(); await h.flush(); h.calls.length = 0;
+  h.change('Compare with', 'r80'); await h.flush();
+  assert.deepEqual(h.calls.map(c => c[1]), ['comparisons']);
+  assert.equal(h.calls[0][2].baselineRunId, 'r80');
+  release(); await h.flush(); h.close();
+});
+
+test('rank dimension updates only hotspots; run count updates history and rankings without repeating comparison', async () => {
+  const h = mount(async (...args) => historyResponse(...args), '/analytics/hotspots');
+  await h.flush(); h.calls.length = 0;
+  h.change('Rank by', 'MODULE'); await h.flush();
+  assert.deepEqual(h.calls.map(c => c[1]), ['hotspots']);
+  h.calls.length = 0;
+  h.change('Number of runs', '5'); await h.flush();
+  assert.deepEqual(h.calls.map(c => c[1]).sort(), ['explorer', 'hotspots']);
+  h.close();
+});
+
+test('comparison and explorer do not wait for a slow hotspot response', async () => {
+  let release;
+  const h = mount((...args) => args[1] === 'hotspots'
+    ? new Promise(resolve => { release = () => resolve(historyResponse(...args)); }) : Promise.resolve(historyResponse(...args)));
+  await h.flush();
+  assert.deepEqual(h.calls.map(c => c[1]).sort(), ['comparisons','explorer','hotspots','runs']);
+  assert.match(h.text, /Updating analytics/);
+  release(); await h.flush(); h.close();
+});
 test('baseline unavailable metrics are not rendered as zero', () => {
   const { ComparisonCards } = ui();
   const html = renderToStaticMarkup(React.createElement(ComparisonCards, { comparison: { currentTotal: 3, newCount: null, resolvedCount: null, persistingCount: null, netChange: null } }));
@@ -140,4 +200,26 @@ test('baseline choices stop at failed runs and comparison cards share model tota
   assert.match(html, /Active 4 = New 2 \+ Persistent 2/);
   assert.match(html, /Previous 3 = Resolved 1 \+ Persistent 2/);
   assert.match(html, /Net change \+1 = New 2/);
+});
+
+test('hotspot explanations show arithmetic while recurrence lives in a separate panel', () => {
+  const { HotspotTable, RecurringViolations } = ui();
+  const row = { entityId: 'service', entityName: 'Service', rawFrequency: 6, activeCount: 2,
+    normalizedFrequency: 1, averageSeverity: 2.5, normalizedSeverity: .75, persistence: .375,
+    recurrence: 1, score: 1/3+.375+.0625, contributions: {frequency: 1/3, severity: .375, persistence: .0625},
+    violations: [{identity: 'persistent-a',currentStreak: 2,recurrence: .75},
+      {identity: 'new-b',currentStreak: 1,recurrence: .25}, {identity:'old-c',currentStreak:0,recurrence:.5}] };
+  const ranking = {rows:[row], window:{actualRuns:4}, cohortSize:1, grouping:'SERVICE', frequencyMin:2, frequencyMax:6,
+    weights:{frequency:1/3,severity:.5,persistence:1/6}, offset:0,status:'AVAILABLE'};
+  const factors = renderToStaticMarkup(React.createElement(HotspotTable,{ranking,currentName:'Run 2',onPage(){}}));
+  assert.match(factors, /F = \(6 − 2\) \/ \(6 − 2\)/);
+  assert.match(factors, /15 \/ 6 ≈ 2.500000/);
+  assert.match(factors, /P = 3 \/ \(4 × 2 active violations\)/);
+  assert.match(factors, /0.333333 \+ 0.375000 \+ 0.062500/);
+  assert.doesNotMatch(factors, /recurrence|old-c/);
+  const recurring = renderToStaticMarkup(React.createElement(RecurringViolations,{ranking}));
+  assert.match(recurring, /Recurring violations/);
+  assert.match(recurring, /Show recurring violations \(2\)/);
+  assert.match(recurring, /old-c/);
+  assert.doesNotMatch(recurring, /new-b/);
 });

@@ -2,6 +2,7 @@ package akegp.analytics.config;
 
 import akegp.analytics.ingestion.ModelsDemoFixture;
 import akegp.analytics.repository.JdbcAnalyticsReadRepository;
+import akegp.analytics.repository.ProjectHistoryReadCache;
 import akegp.analytics.service.AnalyticsQueryService;
 import akegp.analytics.service.ProjectReadAuthorizer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,7 +25,9 @@ public class AnalyticsQueryConfig {
     };
   }
   @Bean AnalyticsQueryService analyticsQueries(AnalyticsDatabase database, ProjectReadAuthorizer authorizer) {
-    return new AnalyticsQueryService(project -> new JdbcAnalyticsReadRepository(database.dataSource()).readProject(project)
+    var history = new ProjectHistoryReadCache(database::dataSource,
+        project -> new JdbcAnalyticsReadRepository(database.dataSource()).readProject(project));
+    return new AnalyticsQueryService(project -> history.readProject(project)
         .stream().filter(r -> !ModelsDemoFixture.PROJECT_ID.equals(project)
             || (r.provenance().equals("DEMO") && r.dataset().equals(ModelsDemoFixture.SOURCE.dataset()))).toList(), authorizer);
   }
