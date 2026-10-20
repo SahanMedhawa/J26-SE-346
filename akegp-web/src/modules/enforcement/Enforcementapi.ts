@@ -60,11 +60,11 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
-export const getEnforcementStats = (signal?: AbortSignal) =>
-  getJson<EnforcementStats>("/api/enforcement/stats", signal);
+export const getEnforcementStats = (signal?: AbortSignal, repo?: string) =>
+  getJson<EnforcementStats>("/api/enforcement/stats" + (repo ? `?${new URLSearchParams({ repo })}` : ""), signal);
 
-export const getRunDetails = (signal?: AbortSignal) =>
-  getJson<RunDetail[]>("/api/enforcement/prs", signal);
+export const getRunDetails = (signal?: AbortSignal, repo?: string) =>
+  getJson<RunDetail[]>("/api/enforcement/prs" + (repo ? `?${new URLSearchParams({ repo })}` : ""), signal);
 
 
 export type DecisionAction = "approve_exception" | "request_changes" | "reject" | "apply_fix";
