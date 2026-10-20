@@ -19,6 +19,12 @@ services:
       AKEGP_RULES_DB_URL: ${AKEGP_RULES_DB_URL:?Set AKEGP_RULES_DB_URL to your Neon PostgreSQL JDBC URL}
       AKEGP_RULES_DB_USER: ${AKEGP_RULES_DB_USER:?Set AKEGP_RULES_DB_USER to your Neon PostgreSQL username}
       AKEGP_RULES_DB_PASSWORD: ${AKEGP_RULES_DB_PASSWORD:?Set AKEGP_RULES_DB_PASSWORD to your Neon PostgreSQL password}
+      AKEGP_ANALYTICS_DB_URL: ${AKEGP_ANALYTICS_DB_URL:-}
+      AKEGP_ANALYTICS_DB_USER: ${AKEGP_ANALYTICS_DB_USER:-}
+      AKEGP_ANALYTICS_DB_PASSWORD: ${AKEGP_ANALYTICS_DB_PASSWORD:-}
+      # Local development only: the platform does not yet implement project membership.
+      AKEGP_ANALYTICS_DEVELOPMENT_ACCESS: ${AKEGP_ANALYTICS_DEVELOPMENT_ACCESS:-true}
+      AKEGP_ANALYTICS_DEMO_ENABLED: ${AKEGP_ANALYTICS_DEMO_ENABLED:-true}
     ports: ["8080:8080"]
   web:
     build: { context: akegp-web }
