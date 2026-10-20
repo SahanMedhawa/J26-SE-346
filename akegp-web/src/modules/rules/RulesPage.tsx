@@ -2,6 +2,7 @@ import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from
 import { Link, Navigate, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import { ADR, ADRInput, ADRStatus, ApiClientError, Project, adrsApi, projectsApi } from "../../shared/api/client";
 import { useSelectedProject } from "./rulesWorkspace";
+import { ProjectWorkspaceLayout } from "../../shared/projects/ProjectWorkspaceLayout";
 
 type RuleModule = {
   label: string;
@@ -23,18 +24,6 @@ function ModuleIcon({ type }: { type: RuleModule["icon"] }) {
     return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h12v4H6zM6 15h12v4H6zM12 9v6M9 12h6" /></svg>;
   }
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3.5v5.25c0 4.3-2.92 7.5-7 9.25-4.08-1.75-7-4.95-7-9.25V6.5z" /><path d="m8.5 12 2.25 2.25L15.75 9" /></svg>;
-}
-
-function WorkspaceHeader() {
-  return (
-    <div className="rules-header">
-      <div>
-        <p className="rules-kicker">Component 01 / Workspace</p>
-        <h1>Architecture Rule Engineering <span>&amp; Validation</span></h1>
-      </div>
-      <div className="workspace-status"><span /> Framework active</div>
-    </div>
-  );
 }
 
 const adrStatuses: ADRStatus[] = ["PROPOSED", "ACCEPTED", "DEPRECATED", "SUPERSEDED"];
@@ -304,38 +293,9 @@ export function RulesPage() {
   if (loadedId !== projectId || selectedProject?.id !== projectId) return <section className="rules-content"><p role="status">Loading project workspace...</p></section>;
   const basePath = `/projects/${encodeURIComponent(projectId)}/rules`;
 
-  return (
-    <div className="rules-workspace">
-      <aside className="rules-sidebar">
-        <div className="sidebar-label">Component 01</div>
-        <div className="sidebar-title">Rule Engineering<br /><span>&amp; Validation</span></div>
-        <nav className="module-nav" aria-label="Architecture rule engineering modules">
-          {ruleModules.map((module) => (
-            <NavLink
-              className={({ isActive }) => `module-link${isActive ? " active" : ""}`}
-              end
-              key={module.path}
-              to={`${basePath}/${module.path}`}
-            >
-              <span className="module-icon"><ModuleIcon type={module.icon} /></span>
-              <span>{module.label}</span>
-              <span className="module-arrow" aria-hidden="true">-&gt;</span>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="selected-project">
-          <span className="selected-project-label">Selected project</span>
-          <strong>{selectedProject.name}</strong>
-          <Link to={`/projects/${encodeURIComponent(projectId)}`}>Project workspace</Link>
-        </div>
-        <div className="sidebar-footer">
-          <span className="status-dot" /> AKEGP / PLATFORM
-        </div>
-      </aside>
-      <div className="rules-main">
-        <WorkspaceHeader />
-        <Outlet key={projectId} />
-      </div>
-    </div>
-  );
+  return <ProjectWorkspaceLayout component="01" title="Architecture Rule Engineering" subtitle="& Validation" status="Framework active" statusIndicator sidebarTitle="Rule Engineering" navLabel="Architecture rule engineering modules"
+    projectId={projectId} projectName={selectedProject.name}
+    modules={ruleModules.map(module => ({ label: module.label, to: `${basePath}/${module.path}`, icon: <ModuleIcon type={module.icon} /> }))}>
+    <Outlet key={projectId} />
+  </ProjectWorkspaceLayout>;
 }

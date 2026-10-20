@@ -22,6 +22,8 @@ services:
       AKEGP_ANALYTICS_DB_URL: ${AKEGP_ANALYTICS_DB_URL:-}
       AKEGP_ANALYTICS_DB_USER: ${AKEGP_ANALYTICS_DB_USER:-}
       AKEGP_ANALYTICS_DB_PASSWORD: ${AKEGP_ANALYTICS_DB_PASSWORD:-}
+      # Optional server-to-server publisher; empty means recorded snapshot ingress is disabled.
+      AKEGP_ANALYTICS_INGESTION_KEY: ${AKEGP_ANALYTICS_INGESTION_KEY:-}
       # Local development only: the platform does not yet implement project membership.
       AKEGP_ANALYTICS_DEVELOPMENT_ACCESS: ${AKEGP_ANALYTICS_DEVELOPMENT_ACCESS:-true}
       AKEGP_ANALYTICS_DEMO_ENABLED: ${AKEGP_ANALYTICS_DEMO_ENABLED:-true}

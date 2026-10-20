@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -61,8 +62,8 @@ public class PipelineEnforcementApi {
 
   /** The review queue: the latest run of every pull request. */
   @GetMapping("/prs")
-  public List<Map<String, Object>> prs() {
-    return repository.latestPerPr().stream().map(RunView::of).toList();
+  public List<Map<String, Object>> prs(@RequestParam(value="repo", required=false) String repo) {
+    return repository.latestPerPr().stream().filter(r -> repo == null || r.getRepo().equalsIgnoreCase(repo)).map(RunView::of).toList();
   }
 
   /** Every scan of one pull request, newest first (what the dashboard shows behind "earlier"). */
@@ -99,7 +100,9 @@ public class PipelineEnforcementApi {
   }
 
   @GetMapping("/stats")
-  public DashboardStats stats() { return stats.stats(); }
+  public DashboardStats stats(@RequestParam(value="repo", required=false) String repo) {
+    return repo == null ? stats.stats() : stats.statsForRepository(repo);
+  }
 
   private static String str(Map<String, Object> body, String key) {
     Object v = body == null ? null : body.get(key);

@@ -8,7 +8,7 @@ const { renderToStaticMarkup } = require("react-dom/server");
 const compiled = {};
 before(async () => {
   const { transformWithOxc } = await import("vite");
-  for (const relative of ["shared/projects/ArchitectureProjects.tsx", "shared/projects/SelectedProject.tsx", "shared/api/client.ts", "modules/rules/RulesPage.tsx", "modules/rules/ArchitectureRulesPage.tsx", "modules/rules/RuleValidationPage.tsx", "modules/conformance/HomePage.tsx", "app/App.tsx", "modules/conformance/ProjectDashboardPage.tsx"]) {
+  for (const relative of ["shared/projects/ProjectWorkspaceLayout.tsx", "shared/projects/ArchitectureProjects.tsx", "shared/projects/SelectedProject.tsx", "shared/api/client.ts", "modules/rules/RulesPage.tsx", "modules/rules/ArchitectureRulesPage.tsx", "modules/rules/RuleValidationPage.tsx", "modules/conformance/HomePage.tsx", "app/App.tsx", "modules/conformance/ProjectDashboardPage.tsx"]) {
     const filename = path.join(__dirname, "../src", relative);
     compiled[relative] = (await transformWithOxc(fs.readFileSync(filename, "utf8"), filename, { jsx: { runtime: "automatic" } })).code;
   }
@@ -72,10 +72,11 @@ function mount(name = "ArchitectureProjects", options = {}) {
   const route = options.route ?? {};
   const router = { Link: function Link() {}, Navigate: function Navigate() {}, NavLink: function NavLink() {}, Outlet: function Outlet() {}, useParams: () => route, useLocation: () => ({ pathname: route.projectId ? `/projects/${route.projectId}/rules/adrs` : "/rules/adrs", search: options.query ?? "" }), useNavigate: () => to => calls.push({ method: "navigate", args: [to] }), useSearchParams: () => [new URLSearchParams(options.query)] };
   const api = { ...client, projectsApi, adrsApi: { ...client.adrsApi, list: async id => { calls.push({ method: "adrs", args: [id] }); return []; }, ...options.adrsApi }, rulesApi: { ...client.rulesApi, list: async id => { calls.push({ method: "rules", args: [id] }); return []; }, ...options.rulesApi } };
-  const imports = { react: hooks, "react-router-dom": router, "../api/client": api, "../../shared/api/client": api, "./SelectedProject": shared, "./rulesWorkspace": shared, "./ImplementationMappingsModal": { ImplementationMappingsModal: empty }, "./ArchitectureRulesPage": { DarkSelect: empty }, "./RuleAssurance": { ArchitectReviewPanel: empty, StoredValidationResult: empty, ArchitectConfirmationRegister: empty } };
+  const layout = load("shared/projects/ProjectWorkspaceLayout.tsx", { "react-router-dom": router });
+  const imports = { "../../shared/projects/ProjectWorkspaceLayout": layout, "../../shared/projects/SelectedProject": shared, react: hooks, "react-router-dom": router, "../api/client": api, "../../shared/api/client": api, "./SelectedProject": shared, "./rulesWorkspace": shared, "./ImplementationMappingsModal": { ImplementationMappingsModal: empty }, "./ArchitectureRulesPage": { DarkSelect: empty }, "./RuleAssurance": { ArchitectReviewPanel: empty, StoredValidationResult: empty, ArchitectConfirmationRegister: empty } };
   const files = { ArchitectureProjects: "shared/projects/ArchitectureProjects.tsx", SelectedProjectProvider: "shared/projects/SelectedProject.tsx", RulesPage: "modules/rules/RulesPage.tsx", ADRManagementPage: "modules/rules/RulesPage.tsx", ArchitectureRulesPage: "modules/rules/ArchitectureRulesPage.tsx", ProjectDashboardPage: "modules/conformance/ProjectDashboardPage.tsx", RuleValidationPage: "modules/rules/RuleValidationPage.tsx" };
   const Component = load(files[name], imports)[name];
-  function render() { let passes = 0; do { assert.ok(passes++ < 25, "renders stabilize"); cursor = 0; changed = false; tree = Component({ children: "route content" }); while (pending.length) pending.shift()(); } while (changed); }
+  function render() { let passes = 0; do { assert.ok(passes++ < 25, "renders stabilize"); cursor = 0; changed = false; tree = Component({ children: "route content" }); if (tree?.type === layout.ProjectWorkspaceLayout) tree = layout.ProjectWorkspaceLayout(tree.props); while (pending.length) pending.shift()(); } while (changed); }
   render();
   return {
     calls, data, router, ApiClientError: client.ApiClientError,
@@ -236,7 +237,7 @@ test("workspace links retain Rules scope and pass project context into Analytics
   const links = [];
   function visit(node) { if (!node || typeof node !== "object") return; if (node.props.className === "workspace-module-card") links.push(node.props.to); React.Children.toArray(node.props.children).forEach(visit); }
   visit(h.tree);
-  assert.deepEqual(links, ["rules", "/conformance", "/enforcement", "/analytics/dashboard?projectId=project-a"]);
+  assert.deepEqual(links, ["/projects/project-a/rules", "/projects/project-a/conformance", "/projects/project-a/enforcement", "/projects/project-a/analytics/dashboard"]);
   h.unmount();
 });
 

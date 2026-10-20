@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Project, projectsApi } from "../../shared/api/client";
 import { useEnforcementStats } from "./Useenforcementstats";
 import { fetchHistory, submitDecision, type DecisionOutcome, type RunHistoryItem } from "./Enforcementapi";
 import type { DecisionAction, DecisionView, RunDetail, RunSummary } from "./Enforcementapi";
@@ -403,7 +405,17 @@ function PullRequestCard({ run, detail, older, result, expanded, onToggle, onSta
 }
 
 export function EnforcementPage() {
-  const { stats, details, failed, updatedAt, refresh } = useEnforcementStats();
+  const { projectId } = useParams();
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectError, setProjectError] = useState("");
+  useEffect(() => {
+    let active = true; setProject(null); setProjectError("");
+    if (projectId) void projectsApi.get(projectId).then(p => { if (active) setProject(p); })
+      .catch(e => { if (active) setProjectError(e.message); });
+    return () => { active = false; };
+  }, [projectId]);
+  const repo = project ? new URL(project.repositoryUrl).pathname.replace(/^\//, "").replace(/\/$/, "").replace(/\.git$/, "") : undefined;
+  const { stats, details, failed, updatedAt, refresh } = useEnforcementStats(repo, !projectId || !!project);
   const [filter, setFilter] = useState("All");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [fixResults, setFixResults] = useState<Record<string, FixResult>>({});
@@ -446,6 +458,8 @@ export function EnforcementPage() {
   return (
     <div className={styles.shell}>
       <main className={styles.page}>
+        {projectId && <p><Link to={`/projects/${projectId}`}>← {project?.name || "Project"} workspace</Link></p>}
+        {projectError && <p role="alert">{projectError}</p>}
         <header className={styles.header}>
           <div>
             <h1 className={styles.title}>CI/CD Enforcement</h1>

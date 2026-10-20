@@ -1,6 +1,7 @@
 package akegp.analytics.hotspot;
 
 import akegp.analytics.domain.AnalyticsRun;
+import akegp.analytics.domain.ArchitecturalAreas;
 import akegp.analytics.lifecycle.RunComparisonService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -53,7 +54,7 @@ public final class HotspotRankingService {
     var current = selected.getLast();
     Map<String, List<AnalyticsRun.Finding>> entities = new TreeMap<>();
     for (var run : selected) for (var f : run.findings().values().stream().sorted(Comparator.comparing(AnalyticsRun.Finding::identity)).toList()) {
-      if (grouping != Grouping.RULE && !f.entityType().equals(grouping.name())) continue;
+      if (key(f, grouping) == null) continue;
       entities.computeIfAbsent(key(f, grouping), ignored -> new ArrayList<>()).add(f);
     }
     int min = entities.values().stream().mapToInt(List::size).min().orElse(0);
@@ -79,7 +80,7 @@ public final class HotspotRankingService {
       double recurrence = (double) selected.stream().filter(r -> r.findings().values().stream()
           .anyMatch(v -> belongs(v, key, grouping))).count() / w;
       Factors parts = new Factors(WEIGHTS.frequency() * f, WEIGHTS.severity() * s, WEIGHTS.persistence() * p);
-      rows.add(new Row(key, grouping.name(), grouping == Grouping.RULE ? last.ruleName() : last.entityName(),
+      rows.add(new Row(key, grouping.name(), grouping == Grouping.RULE ? last.ruleName() : grouping == Grouping.MODULE ? key : last.entityName(),
           occurrences.size(), f, average, s, p, active.size(), recurrence,
           parts.frequency() + parts.severity() + parts.persistence(), parts, details));
     }
@@ -92,9 +93,15 @@ public final class HotspotRankingService {
         rows.stream().skip(offset).limit(limit).toList(), offset, limit, current.label(), "AVAILABLE");
   }
   private boolean belongs(AnalyticsRun.Finding f, String key, Grouping grouping) {
-    return (grouping == Grouping.RULE || f.entityType().equals(grouping.name())) && key(f, grouping).equals(key);
+    return key.equals(key(f, grouping));
   }
-  private String key(AnalyticsRun.Finding f, Grouping grouping) { return grouping == Grouping.RULE ? f.ruleKey() : f.entityKey(); }
+  private String key(AnalyticsRun.Finding f, Grouping grouping) {
+    return switch (grouping) {
+      case RULE -> f.ruleKey();
+      case MODULE -> ArchitecturalAreas.module(f);
+      case SERVICE -> "SERVICE".equals(f.entityType()) ? f.entityKey() : null;
+    };
+  }
   private Ranking empty(int requested, Instant from, Instant to, Grouping g, int offset, int limit, String label, String reason) {
     return new Ranking(new Window(requested, 0, List.of(), null, from, to, "UTC", false, reason),
         g.name(), 0, 0, 0, WEIGHTS, List.of(), offset, limit, label, "INSUFFICIENT_DATA");
