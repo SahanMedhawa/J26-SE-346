@@ -9,7 +9,9 @@ import akegp.rules.repository.RuleRepository;
 import akegp.rules.repository.ReadableIdRepository;
 import akegp.rules.repository.ReadableIdRepository.RecordType;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,8 +56,20 @@ public class RuleServiceImpl implements RuleService {
   @Override
   public List<RuleResponse> findAll(UUID projectId) {
     projectService.findById(projectId);
-    return ruleRepository.findByProject(projectId).stream()
-        .map(rule -> toResponse(rule, adrService.findById(projectId, rule.adrId()).adrId()))
+    List<ArchitectureRule> rules = ruleRepository.findByProject(projectId);
+    if (rules.isEmpty()) {
+      return List.of();
+    }
+    Map<UUID, String> adrDisplayIds = new HashMap<>();
+    adrService.findAll(projectId, null, null)
+        .forEach(adr -> adrDisplayIds.put(adr.id(), adr.adrId()));
+    return rules.stream()
+        .map(rule -> {
+          if (!adrDisplayIds.containsKey(rule.adrId())) {
+            throw new ADRNotFoundException(rule.adrId());
+          }
+          return toResponse(rule, adrDisplayIds.get(rule.adrId()));
+        })
         .toList();
   }
 
