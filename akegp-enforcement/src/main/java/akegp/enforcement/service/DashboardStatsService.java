@@ -11,6 +11,9 @@ public class DashboardStatsService {
   public DashboardStatsService(EnforcementRepository repository) { this.repository = repository; }
 
   public DashboardStats stats() { return build(repository.listRuns(500)); }
+  public DashboardStats statsForRepository(String repo) {
+    return build(repository.listRuns(5000).stream().filter(r -> r.getRepo().equalsIgnoreCase(repo)).toList());
+  }
 
   /** @param runs newest first */
   static DashboardStats build(List<PipelineRun> runs) {

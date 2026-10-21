@@ -33,6 +33,13 @@ public final class RuleCatalog {
     return services;
   }
 
+  /**
+   * The services of the HealthMate demo repository (folders below microservices/). They are TypeScript (Express) except
+   * telemedicine-service, which is Java. The rules below apply to both languages.
+   */
+  public static final List<String> HEALTHMATE_SERVICES = List.of("patient-service", "doctor-service",
+      "appointment-service", "admin-service", "telemedicine-service", "notification-service", "AI-service", "payment-service");
+
   private static final Pattern HARD_CODED_SERVICE_ADDRESS =
       Pattern.compile("[\"']https?://(?:localhost|127\\.0\\.0\\.1|[A-Za-z0-9.-]+):\\d{2,5}");
 
@@ -75,9 +82,16 @@ public final class RuleCatalog {
           otherServices, false,
           "Service imports another service's code; services should communicate through their APIs, not shared code"));
     }
-    rules.add(ArchitectureRule.matchingLine("R-021", "medium", MICROSERVICES, List.copyOf(services.keySet()), List.of(),
+    List<String> addressFolders = new ArrayList<>(services.keySet());
+    addressFolders.addAll(HEALTHMATE_SERVICES);
+    rules.add(ArchitectureRule.matchingLine("R-021", "medium", MICROSERVICES, addressFolders, List.of(),
         HARD_CODED_SERVICE_ADDRESS, false,
         "Hard-coded service address; use service discovery or configuration instead"));
+    for (String folder : HEALTHMATE_SERVICES) {
+      List<String> others = HEALTHMATE_SERVICES.stream().filter(f -> !f.equals(folder)).toList();
+      rules.add(ArchitectureRule.importsFromServiceFolder("R-020", "high", MICROSERVICES, List.of(folder), others,
+          "Service imports another service's code; services should communicate through their APIs, not shared code"));
+    }
     return rules;
   }
 

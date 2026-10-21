@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Project, projectsApi } from "../../shared/api/client";
 import "./ScanHistoryPage.css";
 
@@ -15,7 +15,8 @@ type Scan = {
 export function ScanHistoryPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedProjectId = (location.state as { projectId?: string } | null)?.projectId;
+  const { projectId } = useParams();
+  const selectedProjectId = projectId || (location.state as { projectId?: string } | null)?.projectId;
   const [scans, setScans] = useState<Scan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +80,7 @@ export function ScanHistoryPage() {
   }
 
   return <main className="scan-history-page">
-    <header className="scan-history-topbar"><Link to="/" className="home-brand"><span>✣</span><b>AKEGP</b></Link><Link to="/" className="scan-history-home">← Home</Link></header>
+    <header className="scan-history-topbar"><Link to="/" className="home-brand"><span>✣</span><b>AKEGP</b></Link><Link to={selectedProjectId ? `/projects/${selectedProjectId}` : "/"} className="scan-history-home">← {selectedProjectId ? "Project workspace" : "Home"}</Link></header>
     <section className="scan-history-content">
       <div className="scan-history-heading">
         <div><p className="scan-history-kicker">CONFORMANCE / HISTORY</p><h1>{selectedProjectId ? "Project scan history" : "Your project scans"}</h1>

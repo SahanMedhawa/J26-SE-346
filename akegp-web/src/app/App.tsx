@@ -18,10 +18,10 @@ import "../styles.css";
 
 export function App() {
 	const location = useLocation();
-	const projectRulesMatch = useMatch("/projects/:projectId/rules/*");
+	const projectRulesMatch = useMatch("/projects/:projectId/*");
 	const projectId = projectRulesMatch?.params.projectId;
-	const componentOnePage = /^\/(?:rules|projects\/[^/]+\/rules)(?:\/|$)/.test(location.pathname);
-	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || (location.pathname.startsWith("/projects/") && !componentOnePage) || location.pathname.startsWith("/conformance/graph/");
+	const componentOnePage = /^\/(?:rules|analytics|projects\/[^/]+\/(?:rules|analytics))(?:\/|$)/.test(location.pathname);
+	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph",  "/enforcement"].includes(location.pathname) || (location.pathname.startsWith("/projects/") && !componentOnePage) || location.pathname.startsWith("/conformance/graph/");
 	const settingsLink = <Link className="app-settings-link" to="/settings" aria-label="Project settings" title="Project settings">&#9881;</Link>;
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className={componentOnePage ? "topbar component-one-topbar" : "topbar"}>
@@ -38,6 +38,9 @@ export function App() {
 			<Route path="/projects/new" element={<CreateProjectPage/>}/>
 			<Route path="/projects" element={<ArchitectureProjects/>}/>
 			<Route path="/projects/:projectId" element={<ProjectDashboardPage/>}/>
+			<Route path="/projects/:projectId/analytics/*" element={<AnalyticsPage/>}/>
+			<Route path="/projects/:projectId/conformance" element={<ScanHistoryPage/>}/>
+			<Route path="/projects/:projectId/enforcement" element={<EnforcementPage/>}/>
 			<Route path="/repository" element={<RepositoryPage/>}/>
 			<Route path="/rules" element={<RulesPage/>}>
 				<Route index element={<Navigate replace to="architecture-rules" />} />

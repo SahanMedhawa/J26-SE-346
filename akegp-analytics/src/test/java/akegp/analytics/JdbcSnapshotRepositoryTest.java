@@ -56,6 +56,22 @@ class JdbcSnapshotRepositoryTest {
     assertEquals(3, runCount(p));
   }
 
+  @Test void cachedReadDetectsNewSnapshotsWithoutLosingHistoricalFindings() {
+    UUID project = UUID.randomUUID();
+    var ingestion = service(ModelsDemoFixture.SOURCE, project);
+    var cache = new akegp.analytics.repository.ProjectHistoryReadCache(ds,
+        new akegp.analytics.repository.JdbcAnalyticsReadRepository(ds));
+    ingestion.ingest(run(project, "first", 1, List.of(ModelsDemoFixture.finding("A"))));
+    var first = cache.readProject(project);
+    assertEquals(1, first.getFirst().findings().size());
+    assertSame(first, cache.readProject(project));
+    ingestion.ingest(run(project, "second", 2, List.of()));
+    var updated = cache.readProject(project);
+    assertEquals(2, updated.size());
+    assertEquals(1, updated.getFirst().findings().size());
+    assertEquals(0, updated.getLast().findings().size());
+  }
+
   @Test void crossRunIdentityConflictRollsBackEntireRun() throws Exception {
     UUID p = UUID.randomUUID();
     var source = new AdapterSource("verified-test", AdapterSource.Provenance.UPSTREAM, "", true);
@@ -109,6 +125,35 @@ class JdbcSnapshotRepositoryTest {
       assertNotEquals(one.get(15, java.util.concurrent.TimeUnit.SECONDS), two.get(15, java.util.concurrent.TimeUnit.SECONDS));
     }
     assertEquals(1, runCount(p));
+  }
+  @Test void fullProjectDatasetBatchesAndReplaysWithoutChangingOccurrences() {
+    UUID project = UUID.randomUUID();
+    var data = ProjectDemoHistory.generate(project, "sahanmedhawa/healthmate", List.of(
+        new ProjectDemoHistory.Rule("R-001", "ADR-001", "AppointmentService", "SERVICE", "DIRECT_DATABASE_ACCESS", "PatientDB", "FORBIDDEN", 3,
+            List.of("microservices/appointment-service/src/server.ts"), List.of("microservices/patient-service/src/server.ts"))));
+    var ingestion = service(data.source(), project);
+    ingestion.ingest(data.snapshots().getFirst()); // An interrupted older per-run importer left a prefix.
+    var normalizer = new SnapshotNormalizer();
+    var canonical = data.snapshots().stream().map(s -> normalizer.normalize(s, data.source())).toList();
+    var importer = new akegp.analytics.repository.JdbcDemoDatasetImporter(ds);
+    var firstImport = importer.append(canonical);
+    assertTrue(firstImport.getFirst().replay());
+    assertEquals(95, firstImport.stream().filter(r -> !r.replay()).count());
+    assertTrue(importer.append(canonical).stream().allMatch(r -> r.replay()));
+    var history = new akegp.analytics.repository.JdbcAnalyticsReadRepository(ds).readProject(project);
+    assertEquals(96, history.size());
+    assertEquals(data.snapshots().stream().mapToInt(s -> s.violations().size()).sum(), history.stream().mapToInt(r -> r.findings().size()).sum());
+  }
+  @Test void bulkDemoConflictRollsBackStreamsAndAllNewRuns() throws Exception {
+    UUID project = UUID.randomUUID();
+    var source = new AdapterSource("bulk-test", AdapterSource.Provenance.DEMO, "conflict-v1", true);
+    var a = ModelsDemoFixture.finding("A");
+    var normalizer = new SnapshotNormalizer();
+    var first = normalizer.normalize(run(project, "first", 1, List.of(change(a, "stable", 3, "anchor", null))), source);
+    var conflicting = normalizer.normalize(run(project, "second", 2, List.of(change(a, "stable", 3, "different-anchor", null))), source);
+    assertThrows(IngestionException.class, () -> new akegp.analytics.repository.JdbcDemoDatasetImporter(ds).append(List.of(first, conflicting)));
+    assertEquals(0, runCount(project));
+    assertThrows(IllegalArgumentException.class, () -> new akegp.analytics.repository.JdbcDemoDatasetImporter(ds).append(List.of(first, first)));
   }
 
   private long runCount(UUID project) throws Exception {
