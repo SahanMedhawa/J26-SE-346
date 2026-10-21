@@ -1,6 +1,7 @@
 package akegp.enforcement.config;
 
 import akegp.enforcement.conformance.ConformanceScanner;
+import akegp.enforcement.conformance.HybridConformanceScanner;
 import akegp.enforcement.conformance.MockConformanceScanner;
 import akegp.enforcement.conformance.SharedKernelConformanceScanner;
 import akegp.enforcement.github.GithubStatusClient;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 /** Wires the enforcement module. Everything here is replaceable through the settings in EnforcementProperties. */
 @Configuration
@@ -35,23 +37,23 @@ import org.springframework.context.annotation.Configuration;
 public class EnforcementModuleConfig {
 
   /**
-   * Uses the application's shared PostgreSQL connection (spring.datasource). The tables
+   * Uses the enforcement module's OWN PostgreSQL connection (spring.datasource.*, i.e. AKEGP_DB_URL / AKEGP_DB_USER /
+   * AKEGP_DB_PASSWORD), separate from the Rules module's database (akegp.datasources.rules). The tables
    * {prefix}pipeline_run, {prefix}run_change, {prefix}run_violation, {prefix}audit_log are created by
    * enforcementSchemaInitializer below, once every other module has started.
    * The prefix is akegp.schemas.enforcement (enf_), so only enf_ tables are ever touched.
    */
   @Bean
   public EnforcementRepository enforcementRepository(
-      EnforcementProperties props, ObjectProvider<DataSource> dataSource,
+      EnforcementProperties props, Environment environment,
       @Value("${akegp.schemas.enforcement:enf_}") String tablePrefix) {
     if (!"jdbc".equalsIgnoreCase(props.getPersistence())) {
       return new InMemoryEnforcementRepository();
     }
-    DataSource ds = dataSource.getIfAvailable();
-    if (ds == null) {
-      throw new IllegalStateException("akegp.enforcement.persistence=jdbc but the application has no DataSource. "
-          + "Check spring.datasource.* and that spring-boot-starter-jdbc and the PostgreSQL driver are on the classpath.");
-    }
+    DataSource ds = EnforcementDataSource.create(
+        environment.getProperty("spring.datasource.url"),
+        environment.getProperty("spring.datasource.username"),
+        environment.getProperty("spring.datasource.password"));
     return new JdbcEnforcementRepository(ds, tablePrefix);
   }
 
@@ -79,15 +81,18 @@ public class EnforcementModuleConfig {
     return new HttpGithubStatusClient(g.getApiUrl(), g.getToken(), g.getStatusContext());
   }
 
+  /** conformance: mock (stand-in only) | hybrid (Component 2 is called, the stand-in decides) | real (Component 2 decides). */
   @Bean
   public ConformanceScanner conformanceScanner(EnforcementProperties props, ObjectProvider<ConformanceScanService> real) {
-    if (!"real".equalsIgnoreCase(props.getConformance())) return new MockConformanceScanner();
+    String mode = props.getConformance() == null ? "mock" : props.getConformance().toLowerCase();
+    if (!mode.equals("real") && !mode.equals("hybrid")) return new MockConformanceScanner();
     ConformanceScanService service = real.getIfAvailable();
     if (service == null) {
-      throw new IllegalStateException("akegp.enforcement.conformance=real but no ConformanceScanService bean exists. "
+      throw new IllegalStateException("akegp.enforcement.conformance=" + mode + " but no ConformanceScanService bean exists. "
           + "The conformance module must implement akegp.shared.api.ConformanceScanService.");
     }
-    return new SharedKernelConformanceScanner(service);
+    var component2 = new SharedKernelConformanceScanner(service);
+    return mode.equals("hybrid") ? new HybridConformanceScanner(new MockConformanceScanner(), component2) : component2;
   }
 
   @Bean public ChangeClassifier changeClassifier() { return new ChangeClassifier(); }

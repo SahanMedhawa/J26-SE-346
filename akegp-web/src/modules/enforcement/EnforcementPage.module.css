@@ -5,11 +5,23 @@
   --bad: #ff7b72; --bad-bg: rgba(248, 81, 73, .13); --bad-line: rgba(248, 81, 73, .45);
   --warn: #e3b341; --warn-bg: rgba(210, 153, 34, .16); --warn-line: rgba(210, 153, 34, .5);
   --blue: #58a6ff; --green: #2ea043;
-  color: var(--text); min-height: calc(100vh - 57px);
+  color: var(--text); min-height: 100vh;
 }
+/* Same top bar and breadcrumb as the Conformance pages (kept here so this module does not depend on their stylesheet). */
+.topbar { align-items: center; background: #101710; border-bottom: 1px solid #2d3932; color: #9eaa9f; display: flex; font-size: 12px; gap: 11px; height: 64px; padding: 0 28px; }
+.wordmark { color: #57d675; font-size: 18px; font-weight: 750; letter-spacing: .04em; text-decoration: none; }
+.topbarLabel { color: #aab7aa; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; margin-left: auto; }
+.topbarSettings { color: #b8c5b9; font-size: 12px; margin-left: 18px; text-decoration: none; }
+.topbarSettings:hover { color: #62d878; }
+.crumbs { color: #9eaa9f; display: flex; font-size: 12px; gap: 12px; padding-top: 26px; }
+.crumbs a { color: #aebbb0; text-decoration: none; }
+.crumbs a:hover { color: #62d878; }
+.crumbs strong { color: #d5dfd6; font-weight: 500; }
+@media (max-width: 600px) { .topbar { padding: 0 14px; } .topbarLabel { display: none; } }
+
 .page { margin: 0 auto; max-width: 980px; padding: 0 24px 72px; }
 
-.header { align-items: flex-start; display: flex; gap: 24px; justify-content: space-between; padding: 36px 0 24px; }
+.header { align-items: flex-start; display: flex; gap: 24px; justify-content: space-between; padding: 22px 0 24px; }
 .title { font-size: clamp(24px, 3vw, 32px); letter-spacing: -.03em; line-height: 1.15; margin: 0; }
 .lead { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 10px 0 0; max-width: 560px; }
 .live { align-items: center; color: var(--muted); display: flex; flex: none; font-size: 12px; gap: 8px; padding-top: 8px; }
