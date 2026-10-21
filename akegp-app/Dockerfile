@@ -7,7 +7,7 @@ COPY akegp-conformance akegp-conformance
 COPY akegp-enforcement akegp-enforcement
 COPY akegp-analytics akegp-analytics
 COPY akegp-app akegp-app
-RUN mvn -B -pl akegp-app -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 mvn -B -pl akegp-app -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
 COPY --from=build /build/akegp-app/target/akegp-app-0.1.0-SNAPSHOT.jar app.jar

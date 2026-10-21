@@ -1,4 +1,9 @@
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+      - optional:classpath:application-local.yml
   application:
     name: akegp
   datasource:
@@ -8,12 +13,20 @@ spring:
   flyway:
     enabled: false
 akegp:
+  enforcement:
+    persistence: jdbc
+    conformance: mock
+    api-key: dev-key
+    projects:
+      "[demo/shop-api]": project-A
   schemas:
     rules: rules_
     enforcement: enf_
     analytics: analytics_
   neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
+    uri: ${NEO4J_URI}
+    username: ${NEO4J_USER}
+    password: ${NEO4J_PASSWORD}
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/akegp}
   datasources:
@@ -21,3 +34,8 @@ akegp:
       url: ${AKEGP_RULES_DB_URL}
       username: ${AKEGP_RULES_DB_USER}
       password: ${AKEGP_RULES_DB_PASSWORD}
+    analytics:
+      url: ${AKEGP_ANALYTICS_DB_URL:}
+      username: ${AKEGP_ANALYTICS_DB_USER:}
+      password: ${AKEGP_ANALYTICS_DB_PASSWORD:}
+
