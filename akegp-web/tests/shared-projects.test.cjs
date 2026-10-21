@@ -8,7 +8,7 @@ const { renderToStaticMarkup } = require("react-dom/server");
 const compiled = {};
 before(async () => {
   const { transformWithOxc } = await import("vite");
-  for (const relative of ["shared/projects/ArchitectureProjects.tsx", "shared/projects/SelectedProject.tsx", "shared/api/client.ts", "modules/rules/RulesPage.tsx", "modules/rules/ArchitectureRulesPage.tsx", "modules/rules/RuleValidationPage.tsx", "modules/conformance/HomePage.tsx", "app/App.tsx", "modules/conformance/ProjectDashboardPage.tsx"]) {
+  for (const relative of ["shared/projects/ProjectWorkspaceLayout.tsx", "shared/projects/ArchitectureProjects.tsx", "shared/projects/SelectedProject.tsx", "shared/api/client.ts", "modules/rules/RulesPage.tsx", "modules/rules/ArchitectureRulesPage.tsx", "modules/rules/RuleValidationPage.tsx", "modules/conformance/HomePage.tsx", "app/App.tsx", "modules/conformance/ProjectDashboardPage.tsx"]) {
     const filename = path.join(__dirname, "../src", relative);
     compiled[relative] = (await transformWithOxc(fs.readFileSync(filename, "utf8"), filename, { jsx: { runtime: "automatic" } })).code;
   }
@@ -72,10 +72,11 @@ function mount(name = "ArchitectureProjects", options = {}) {
   const route = options.route ?? {};
   const router = { Link: function Link() {}, Navigate: function Navigate() {}, NavLink: function NavLink() {}, Outlet: function Outlet() {}, useParams: () => route, useLocation: () => ({ pathname: route.projectId ? `/projects/${route.projectId}/rules/adrs` : "/rules/adrs", search: options.query ?? "" }), useNavigate: () => to => calls.push({ method: "navigate", args: [to] }), useSearchParams: () => [new URLSearchParams(options.query)] };
   const api = { ...client, projectsApi, adrsApi: { ...client.adrsApi, list: async id => { calls.push({ method: "adrs", args: [id] }); return []; }, ...options.adrsApi }, rulesApi: { ...client.rulesApi, list: async id => { calls.push({ method: "rules", args: [id] }); return []; }, ...options.rulesApi } };
-  const imports = { react: hooks, "react-router-dom": router, "../api/client": api, "../../shared/api/client": api, "./SelectedProject": shared, "./rulesWorkspace": shared, "./ImplementationMappingsModal": { ImplementationMappingsModal: empty }, "./ArchitectureRulesPage": { DarkSelect: empty }, "./RuleAssurance": { ArchitectReviewPanel: empty, StoredValidationResult: empty, ArchitectConfirmationRegister: empty } };
+  const layout = load("shared/projects/ProjectWorkspaceLayout.tsx", { "react-router-dom": router });
+  const imports = { "../../shared/projects/ProjectWorkspaceLayout": layout, "../../shared/projects/SelectedProject": shared, react: hooks, "react-router-dom": router, "../api/client": api, "../../shared/api/client": api, "./SelectedProject": shared, "./rulesWorkspace": shared, "./ImplementationMappingsModal": { ImplementationMappingsModal: empty }, "./ArchitectureRulesPage": { DarkSelect: empty }, "./RuleAssurance": { ArchitectReviewPanel: empty, StoredValidationResult: empty, ArchitectConfirmationRegister: empty } };
   const files = { ArchitectureProjects: "shared/projects/ArchitectureProjects.tsx", SelectedProjectProvider: "shared/projects/SelectedProject.tsx", RulesPage: "modules/rules/RulesPage.tsx", ADRManagementPage: "modules/rules/RulesPage.tsx", ArchitectureRulesPage: "modules/rules/ArchitectureRulesPage.tsx", ProjectDashboardPage: "modules/conformance/ProjectDashboardPage.tsx", RuleValidationPage: "modules/rules/RuleValidationPage.tsx" };
   const Component = load(files[name], imports)[name];
-  function render() { let passes = 0; do { assert.ok(passes++ < 25, "renders stabilize"); cursor = 0; changed = false; tree = Component({ children: "route content" }); while (pending.length) pending.shift()(); } while (changed); }
+  function render() { let passes = 0; do { assert.ok(passes++ < 25, "renders stabilize"); cursor = 0; changed = false; tree = Component({ children: "route content" }); if (tree?.type === layout.ProjectWorkspaceLayout) tree = layout.ProjectWorkspaceLayout(tree.props); while (pending.length) pending.shift()(); } while (changed); }
   render();
   return {
     calls, data, router, ApiClientError: client.ApiClientError,
@@ -183,17 +184,17 @@ test("ADR, rule engineering and validation prefer the Home selection over the fi
   const validation = mount("RuleValidationPage", options); await validation.flush(); assert.equal(validation.element("ProjectValidation").props.project.id, selected.id); validation.unmount();
 });
 
-test("Home has a top projects link and retains existing content without embedding project management", () => {
+test("Home links to project creation/library without embedding project management", () => {
   const Link = () => null;
-  const { HomePage } = load("modules/conformance/HomePage.tsx", { "react-router-dom": { Link } });
+  const { HomePage } = load("modules/conformance/HomePage.tsx", { "react-router-dom": { Link }, "../../shared/Brand": { Brand: () => null } });
   const tree = HomePage(); const children = React.Children.toArray(tree.props.children);
-  assert.equal(children[0].type, "header"); assert.equal(children[1].type, "nav"); assert.equal(children[2].props.className, "home-hero"); assert.equal(children.at(-1).type, "footer");
+  assert.equal(children[0].type, "header"); assert.equal(children[1].props.className, "home-hero"); assert.equal(children.at(-1).type, "footer");
   const projectsLink = find(children[1], node => node.type === Link && node.props.to === "/projects");
-  assert.ok(projectsLink); assert.match(text(projectsLink), /Architecture Projects/); assert.match(text(projectsLink), /Register and manage architecture projects/);
+  assert.ok(projectsLink); assert.match(text(projectsLink), /Open project library/);
   assert.ok(!find(tree, node => node.type === "table" || node.type?.name === "ArchitectureProjects"));
   assert.ok(!text(tree).includes("Register Project"));
-  for (const title of ["Keep your architecture", "Govern architecture through the pipeline.", "From architecture intent to code.", "Start a conformance scan"]) assert.ok(text(tree).includes(title));
-  for (const href of ["/rules", "/conformance", "/enforcement", "/analytics", "/settings"]) assert.ok(find(tree, node => node.type === Link && node.props.to === href));
+  for (const title of ["Keep your architecture", "Govern architecture through the pipeline.", "Make the architecture visible."]) assert.ok(text(tree).includes(title));
+  for (const href of ["/projects/new", "/projects", "/settings"]) assert.ok(find(tree, node => node.type === Link && node.props.to === href));
 });
 
 test("dedicated project management includes Back to Home and the full saved projects interface", async () => {
@@ -209,7 +210,9 @@ test("routes share one provider, mount the reused manager at /projects, and redi
   const empty = () => null;
   const Provider = () => null, Home = () => null, Projects = () => null, Route = () => null, Navigate = () => null;
   const imports = {
-    "react-router-dom": { Link: empty, Navigate, Route, Routes: empty, useLocation: () => ({ pathname: "/home" }) },
+    "react-router-dom": { Link: empty, Navigate, Route, Routes: empty, useLocation: () => ({ pathname: "/home" }), useMatch: () => null },
+    "../modules/conformance/ScanHistoryPage": { ScanHistoryPage: empty },
+    "../shared/Brand": { Brand: empty },
     "../shared/projects/SelectedProject": { SelectedProjectProvider: Provider },
     "../shared/projects/ArchitectureProjects": { ArchitectureProjects: Projects },
     "../modules/conformance/HomePage": { HomePage: Home },
@@ -229,12 +232,12 @@ test("routes share one provider, mount the reused manager at /projects, and redi
   for (const relative of ["shared/projects/ArchitectureProjects.tsx", "shared/projects/SelectedProject.tsx"]) assert.ok(!/from\s*["'][^"']*(modules\/rules|rulesWorkspace)/.test(fs.readFileSync(path.join(__dirname, "../src", relative), "utf8")));
 });
 
-test("workspace Architecture Rules link resolves within the current project and leaves other modules alone", async () => {
+test("workspace links retain Rules scope and pass project context into Analytics", async () => {
   const h = mount("ProjectDashboardPage", { route: { projectId: projectA.id } }); await h.flush();
   const links = [];
   function visit(node) { if (!node || typeof node !== "object") return; if (node.props.className === "workspace-module-card") links.push(node.props.to); React.Children.toArray(node.props.children).forEach(visit); }
   visit(h.tree);
-  assert.deepEqual(links, ["rules", "/conformance", "/enforcement", "/analytics"]);
+  assert.deepEqual(links, ["/projects/project-a/rules", "/projects/project-a/conformance", "/projects/project-a/enforcement", "/projects/project-a/analytics/dashboard"]);
   h.unmount();
 });
 

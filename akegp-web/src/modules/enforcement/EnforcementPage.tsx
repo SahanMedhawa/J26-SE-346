@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Project, projectsApi } from "../../shared/api/client";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useEnforcementStats } from "./Useenforcementstats";
@@ -419,7 +422,17 @@ function PullRequestCard({ run, detail, older, result, expanded, onToggle, onSta
 }
 
 export function EnforcementPage() {
-  const { stats, details, failed, updatedAt, refresh } = useEnforcementStats();
+  const { projectId } = useParams();
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectError, setProjectError] = useState("");
+  useEffect(() => {
+    let active = true; setProject(null); setProjectError("");
+    if (projectId) void projectsApi.get(projectId).then(p => { if (active) setProject(p); })
+      .catch(e => { if (active) setProjectError(e.message); });
+    return () => { active = false; };
+  }, [projectId]);
+  const repo = project ? new URL(project.repositoryUrl).pathname.replace(/^\//, "").replace(/\/$/, "").replace(/\.git$/, "") : undefined;
+  const { stats, details, failed, updatedAt, refresh } = useEnforcementStats(repo, !projectId || !!project);
   const [filter, setFilter] = useState("All");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [fixResults, setFixResults] = useState<Record<string, FixResult>>({});
@@ -469,6 +482,8 @@ export function EnforcementPage() {
         <Link to="/settings" className={styles.topbarSettings} aria-label="Project settings" title="Project settings">Settings</Link>
       </header>
       <main className={styles.page}>
+        {projectId && <p><Link to={`/projects/${projectId}`}>← {project?.name || "Project"} workspace</Link></p>}
+        {projectError && <p role="alert">{projectError}</p>}
         <nav className={styles.crumbs} aria-label="Breadcrumb">
           <Link to="/">Home</Link><span>/</span><strong>CI/CD enforcement</strong>
         </nav>

@@ -12,3 +12,5 @@ akegp-app/src/main/resources/application-local.yml
 .env.*.local
 # Track Component 1 Java configuration while keeping local configuration ignored.
 !akegp-rules/src/main/java/akegp/rules/config/
+# Track Component 4 Java configuration, not local credentials.
+!akegp-analytics/src/main/java/akegp/analytics/config/
