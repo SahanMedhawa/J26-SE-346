@@ -21,9 +21,8 @@ export function App() {
 	const projectRulesMatch = useMatch("/projects/:projectId/*");
 	const projectId = projectRulesMatch?.params.projectId;
 	const componentOnePage = /^\/(?:rules|analytics|projects\/[^/]+\/(?:rules|analytics))(?:\/|$)/.test(location.pathname);
-	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph"].includes(location.pathname) || (location.pathname.startsWith("/projects/") && !componentOnePage) || location.pathname.startsWith("/conformance/graph/");
+	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph",  "/enforcement"].includes(location.pathname) || (location.pathname.startsWith("/projects/") && !componentOnePage) || location.pathname.startsWith("/conformance/graph/");
 	const settingsLink = <Link className="app-settings-link" to="/settings" aria-label="Project settings" title="Project settings">&#9881;</Link>;
-	const standalonePage = ["/", "/home", "/repository", "/projects", "/projects/new", "/settings", "/conformance", "/conformance/graph", "/enforcement"].includes(location.pathname) || /^\/projects\/[^/]+\/?$/.test(location.pathname);
 	return <SelectedProjectProvider><div className="app-shell">
 		{!standalonePage && <header className={componentOnePage ? "topbar component-one-topbar" : "topbar"}>
 			{componentOnePage ? <Brand /> : <Link className="brand" to="/" aria-label="AKEGP home"><span className="brand-mark">A</span><span className="brand-name">AKEGP <span>/ PLATFORM</span></span></Link>}
