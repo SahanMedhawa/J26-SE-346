@@ -9,6 +9,8 @@ import akegp.conformance.repository.Neo4jCodeGraphRepository;
 import java.io.IOException;
 import java.util.Set;
 import java.util.List;
+import akegp.shared.api.ConformanceGraphScanService;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -38,7 +40,33 @@ public class CodeGraphService {
     return repository.listScans();
   }
 
+  public boolean hasScan(String repositoryId) {
+    return repository.findByRepositoryId(repositoryId).isPresent();
+  }
+
   public CodeGraph find(String scanId) {
     return repository.find(scanId);
+  }
+}
+
+@Component
+class PullRequestCodeGraphScanner implements ConformanceGraphScanService {
+  private final CodeGraphService graphs;
+
+  PullRequestCodeGraphScanner(CodeGraphService graphs) { this.graphs = graphs; }
+
+  @Override
+  public void scanPullRequest(String projectId, String repositoryUrl, int prNumber, String commitSha) {
+    String scanKey = projectId + ":pr-" + prNumber + ":" + commitSha;
+    if (graphs.hasScan(scanKey)) return;
+    String pinnedUrl = repositoryUrl.replaceAll("/+$", "") + "/tree/" + commitSha;
+    try {
+      graphs.importRepository(scanKey, pinnedUrl);
+    } catch (IOException e) {
+      throw new IllegalStateException("Could not build graph for PR #" + prNumber + " at " + commitSha, e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Graph scan interrupted for PR #" + prNumber, e);
+    }
   }
 }

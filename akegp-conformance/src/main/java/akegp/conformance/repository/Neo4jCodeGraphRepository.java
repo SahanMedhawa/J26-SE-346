@@ -44,6 +44,14 @@ public class Neo4jCodeGraphRepository {
     return new ConformanceScan(scanId, repositoryId, repositoryUrl, scannedAt, graph.files().size(), graph.dependencies().size());
   }
 
+  public java.util.Optional<ConformanceScan> findByRepositoryId(String repositoryId) {
+    try (Session session = driver.session()) {
+      return session.executeRead(transaction -> transaction.run(
+          "MATCH (s:ConformanceScan {repositoryId: $repositoryId}) RETURN s.scanId AS scanId, s.repositoryId AS repositoryId, s.repositoryUrl AS repositoryUrl, s.scannedAt AS scannedAt, s.fileCount AS fileCount, s.dependencyCount AS dependencyCount ORDER BY s.scannedAt DESC LIMIT 1",
+          Values.parameters("repositoryId", repositoryId)).list(this::toScan).stream().findFirst());
+    }
+  }
+
   public List<ConformanceScan> listScans() {
     try (Session session = driver.session()) {
       return session.executeRead(transaction -> transaction.run("MATCH (s:ConformanceScan) RETURN s.scanId AS scanId, s.repositoryId AS repositoryId, s.repositoryUrl AS repositoryUrl, s.scannedAt AS scannedAt, s.fileCount AS fileCount, s.dependencyCount AS dependencyCount ORDER BY s.scannedAt DESC")
