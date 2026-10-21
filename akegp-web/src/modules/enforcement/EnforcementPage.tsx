@@ -10,6 +10,7 @@ type Tone = "ok" | "bad" | "warn" | "muted";
 
 const RESULT_TONE: Record<string, Tone> = {
   Passed: "ok",
+  Fixed: "ok",
   Skipped: "muted",
   "Violation found": "bad",
   Held: "warn",
@@ -211,6 +212,18 @@ function reasonOf(scan: Explainable): string {
   }
 }
 
+/**
+ * The word shown for a pull request. "Fixed" means an earlier scan found violations (still open, or answered by a
+ * reviewer with changes requested, an exception or a rejection) and the latest commit cleared them: it now passes, or
+ * no longer changes source code. The newest scan itself being a reviewer's decision is never called "Fixed".
+ */
+const VIOLATION_RESULTS = ["Violation found", "Changes requested", "Rejected", "Exception approved"];
+
+function displayResult(latest: RunSummary, older: RunSummary[]): string {
+  const hadViolations = older.some((run) => VIOLATION_RESULTS.includes(run.result));
+  return hadViolations && (latest.result === "Passed" || latest.result === "Skipped") ? "Fixed" : latest.result;
+}
+
 const PROBLEM_RESULTS = ["Violation found", "Held", "Rejected", "Changes requested", "Exception approved"];
 
 /** How the pull request got from its earlier scans to the latest one (only when an earlier scan had a problem). */
@@ -342,9 +355,11 @@ function PullRequestCard({ run, detail, older, result, expanded, onToggle, onSta
   expanded: boolean;
   onToggle: () => void;
 } & DecisionHandlers) {
-  const tone = toneOf(run.result);
+  const label = displayResult(run, older);
+  const tone = toneOf(label);
   const formVisible = expanded && detail !== undefined && detail.state === "held";
-  const brief = detail ? briefOf(detail) : `${run.changeType}, ${run.files} file${run.files === 1 ? "" : "s"}`;
+  const plainBrief = detail ? briefOf(detail) : `${run.changeType}, ${run.files} file${run.files === 1 ? "" : "s"}`;
+  const brief = label === "Fixed" ? `Fixed: the earlier violations are gone. ${plainBrief}` : plainBrief;
   const note = historyNote(run, older);
   return (
     <article className={`${styles.card} ${styles[`card_${tone}`]}`}>
@@ -352,7 +367,7 @@ function PullRequestCard({ run, detail, older, result, expanded, onToggle, onSta
         <span className={styles.rowMain}>
           <span className={styles.rowTitle}>
             <span className={styles.prNumber}>PR #{run.pr}</span>
-            <ResultPill result={run.result} />
+            <ResultPill result={label} />
           </span>
           <span className={styles.brief}>{brief}</span>
         </span>
@@ -450,16 +465,26 @@ export function EnforcementPage() {
     }
     return { latest: [...first.values()], earlier: older };
   }, [recent]);
-  const results = useMemo(() => ["All", ...new Set(latest.map((run) => run.result))], [latest]);
-  const shown = filter === "All" ? latest : latest.filter((run) => run.result === filter);
+  const labelOfRun = (run: RunSummary) => displayResult(run, earlier.get(`${run.repo}#${run.pr}`) ?? []);
+  const results = ["All", ...new Set(latest.map(labelOfRun))];
+  const shown = filter === "All" ? latest : latest.filter((run) => labelOfRun(run) === filter);
   const needsReview = latest.filter((run) => run.result === "Violation found" || run.result === "Held").length;
   const connecting = stats === null && !failed;
 
   return (
     <div className={styles.shell}>
+      <header className={styles.topbar}>
+        <Link to="/" className={styles.wordmark}>AKEGP</Link>
+        <span>Governance Engine</span>
+        <div className={styles.topbarLabel}>CI/CD ENFORCEMENT / PULL REQUESTS</div>
+        <Link to="/settings" className={styles.topbarSettings} aria-label="Project settings" title="Project settings">Settings</Link>
+      </header>
       <main className={styles.page}>
         {projectId && <p><Link to={`/projects/${projectId}`}>← {project?.name || "Project"} workspace</Link></p>}
         {projectError && <p role="alert">{projectError}</p>}
+        <nav className={styles.crumbs} aria-label="Breadcrumb">
+          <Link to="/">Home</Link><span>/</span><strong>CI/CD enforcement</strong>
+        </nav>
         <header className={styles.header}>
           <div>
             <h1 className={styles.title}>CI/CD Enforcement</h1>
