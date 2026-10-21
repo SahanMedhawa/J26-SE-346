@@ -31,6 +31,7 @@ public class PullRequestGraphScanCoordinator {
   }
 
   public void scan(PipelineRun run) {
+    if (run.getClassification() == null || !run.getClassification().needsScan()) return;
     String projectId = projects.projectIdFor(run.getRepo()).orElse(run.getProjectId());
     if (projectId == null || projectId.isBlank()) {
       LOG.warning("Skipping graph scan for " + run.getRepo() + " PR #" + run.getPrNumber() + ": repository is not linked to a project");

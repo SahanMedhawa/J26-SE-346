@@ -24,6 +24,12 @@
 .scan-history-empty button { background: #6fda84; border: 0; border-radius: 8px; color: #102117; cursor: pointer; font: 650 14px Inter, ui-sans-serif, system-ui, sans-serif; padding: 13px 18px; white-space: nowrap; }
 .scan-history-new:hover,
 .scan-history-empty button:hover { background: #9aeea7; }
+.scan-history-search { align-items: center; background: rgba(23, 34, 29, .76); border: 1px solid #405847; border-radius: 9px; display: flex; gap: 14px; margin: -20px 0 38px; max-width: 560px; padding: 0 15px; }
+.scan-history-search > span:first-child { color: #a8b9ab; flex: 0 0 auto; font-size: 13px; }
+.scan-history-search input { background: transparent; border: 0; color: #e1eee2; flex: 1; font: inherit; min-width: 0; outline: 0; padding: 14px 0; }
+.scan-history-search input::placeholder { color: #718575; }
+.scan-history-search:focus-within { border-color: #6fda84; box-shadow: 0 0 0 3px rgba(111, 218, 132, .12); }
+.scan-history-search-icon { color: #6fda84; font-size: 23px; }
 .scan-history-list { display: grid; gap: 12px; }
 .scan-history-project { margin-top: 34px; }
 .scan-history-project-heading { align-items: center; border-bottom: 1px solid #34483a; display: flex; justify-content: space-between; margin-bottom: 14px; padding-bottom: 12px; }
@@ -53,6 +59,9 @@
   .scan-history-heading { align-items: start; flex-direction: column; }
   .scan-history-content { padding-bottom: 56px; padding-top: 54px; }
   .scan-history-new { width: 100%; }
+  .scan-history-search { align-items: stretch; flex-direction: column; gap: 2px; margin: -24px 0 30px; padding-top: 12px; }
+  .scan-history-search input { padding: 8px 0 12px; }
+  .scan-history-search-icon { display: none; }
   .scan-history-card-top { align-items: flex-start; flex-direction: column-reverse; }
   .scan-history-stats { gap: 14px 22px; }
 }
