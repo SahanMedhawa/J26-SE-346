@@ -8,6 +8,7 @@ import { HomePage } from "../modules/conformance/HomePage";
 import { CreateProjectPage } from "../modules/conformance/CreateProjectPage";
 import { ProjectDashboardPage } from "../modules/conformance/ProjectDashboardPage";
 import { ScanHistoryPage } from "../modules/conformance/ScanHistoryPage";
+import { ConformanceViolationsPage } from "../modules/conformance/ConformanceViolationsPage";
 import { ADRManagementPage, RulesPage } from "../modules/rules/RulesPage";
 import { ArchitectureRulesPage } from "../modules/rules/ArchitectureRulesPage";
 import { RuleValidationPage } from "../modules/rules/RuleValidationPage";
@@ -40,6 +41,7 @@ export function App() {
 			<Route path="/projects/:projectId" element={<ProjectDashboardPage/>}/>
 			<Route path="/projects/:projectId/analytics/*" element={<AnalyticsPage/>}/>
 			<Route path="/projects/:projectId/conformance" element={<ScanHistoryPage/>}/>
+			<Route path="/projects/:projectId/conformance/violations" element={<ConformanceViolationsPage/>}/>
 			<Route path="/projects/:projectId/enforcement" element={<EnforcementPage/>}/>
 			<Route path="/repository" element={<RepositoryPage/>}/>
 			<Route path="/rules" element={<RulesPage/>}>
@@ -59,6 +61,7 @@ export function App() {
 			</Route>
 			<Route path="/settings" element={<SettingsPage/>}/>
 			<Route path="/conformance" element={<ScanHistoryPage/>}/>
+			<Route path="/conformance/violations" element={<ConformanceViolationsPage/>}/>
 			<Route path="/conformance/graph" element={<ConformancePage/>}/>
 			<Route path="/conformance/graph/:scanId" element={<ConformancePage/>}/>
 			<Route path="/enforcement" element={<EnforcementPage/>}/>

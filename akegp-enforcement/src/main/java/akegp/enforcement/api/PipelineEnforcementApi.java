@@ -10,6 +10,7 @@ import akegp.enforcement.service.DashboardStats;
 import akegp.enforcement.service.DashboardStatsService;
 import akegp.enforcement.service.EnforcementException;
 import akegp.enforcement.service.EnforcementService;
+import akegp.enforcement.service.PullRequestGraphScanCoordinator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +35,18 @@ public class PipelineEnforcementApi {
   private final DashboardStatsService stats;
   private final EnforcementRepository repository;
   private final EnforcementProperties props;
+  private final PullRequestGraphScanCoordinator graphScans;
 
   public PipelineEnforcementApi(EnforcementService enforcement, ReviewService review, FixVerificationService fixes,
-                                DashboardStatsService stats, EnforcementRepository repository, EnforcementProperties props) {
+                                DashboardStatsService stats, EnforcementRepository repository, EnforcementProperties props,
+                                PullRequestGraphScanCoordinator graphScans) {
     this.enforcement = enforcement;
     this.review = review;
     this.fixes = fixes;
     this.stats = stats;
     this.repository = repository;
     this.props = props;
+    this.graphScans = graphScans;
   }
 
   @PostMapping("/pipeline-events")
@@ -52,6 +56,7 @@ public class PipelineEnforcementApi {
     if (apiKey == null || !apiKey.equals(props.getApiKey())) throw new EnforcementException(401, "invalid or missing x-api-key");
     PipelineEvent event = PipelineEventValidator.parse(body);
     PipelineRun run = enforcement.handle(event);
+    graphScans.scan(run);
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("runId", run.getId());
     out.put("state", run.getState().wire());

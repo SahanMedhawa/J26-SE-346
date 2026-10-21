@@ -14,6 +14,7 @@ final class RunView {
     Map<String, Object> m = new LinkedHashMap<>();
     m.put("runId", r.getId());
     m.put("repo", r.getRepo());
+    m.put("repoUrl", r.getRepoUrl());
     m.put("prNumber", r.getPrNumber());
     m.put("commitSha", r.getCommitSha());
     m.put("projectId", r.getProjectId());

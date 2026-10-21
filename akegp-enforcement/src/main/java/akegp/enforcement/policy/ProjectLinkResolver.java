@@ -6,4 +6,7 @@ import java.util.Optional;
 public interface ProjectLinkResolver {
   /** @param repo "owner/name"; matched case-insensitively */
   Optional<String> projectIdFor(String repo);
+
+  /** Canonical registered repository URL, used when older enforcement records did not store one. */
+  default Optional<String> repositoryUrlFor(String repo) { return Optional.empty(); }
 }

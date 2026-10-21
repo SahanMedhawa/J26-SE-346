@@ -5,6 +5,7 @@ import "./ConformancePage.css";
 type CodeFile = { path: string; language: string; kind?: string };
 type Dependency = { source: string; target: string };
 type CodeGraph = { files: CodeFile[]; dependencies: Dependency[] };
+type RuleEdgeHighlight = { source: string; target: string; tone: "violation" | "satisfied"; missing?: boolean; synthetic?: boolean };
 type Node = { id: string; path: string; language: string; x: number; y: number; kind: string; members?: CodeFile[] };
 
 function initialScanKey(projectId: string) {
@@ -70,9 +71,15 @@ function nodeKind(file: CodeFile): string {
 	return "Internal";
 }
 
+function graphEdgeKey(source: string, target: string) {
+	const normalize = (path: string) => path.replace(/\\/g, "/").replace(/^\.\//, "").toLowerCase();
+	return `${normalize(source)}=>${normalize(target)}`;
+}
+
 export function ConformancePage() {
 	const location = useLocation();
 	const { scanId } = useParams();
+	const embeddedGraph = new URLSearchParams(location.search).get("embedded") === "1";
 	const didAutoScan = useRef(false);
 	const initialResult = location.state as { projectId?: string; repositoryId?: string; repositoryUrl?: string; initialScanId?: string; graph?: CodeGraph } | null;
 	const projectId = initialResult?.projectId;
@@ -87,6 +94,22 @@ export function ConformancePage() {
 	const [selectedPath, setSelectedPath] = useState("");
 	const [scanOpen, setScanOpen] = useState(false);
 	const [zoom, setZoom] = useState(1);
+	const [ruleEdgeHighlights, setRuleEdgeHighlights] = useState<RuleEdgeHighlight[]>([]);
+	const [onlyRuleEdges, setOnlyRuleEdges] = useState(false);
+
+	useEffect(() => {
+		const receiveRuleHighlights = (event: MessageEvent) => {
+			if (event.origin !== window.location.origin) return;
+			const message = event.data as { type?: string; edges?: RuleEdgeHighlight[]; onlyRuleEdges?: boolean };
+			if (message?.type === "AKEGP_RULE_EDGE_HIGHLIGHTS" && Array.isArray(message.edges)) {
+				setRuleEdgeHighlights(message.edges);
+				setOnlyRuleEdges(message.onlyRuleEdges === true);
+			}
+		};
+		window.addEventListener("message", receiveRuleHighlights);
+		if (window.parent !== window) window.parent.postMessage({ type: "AKEGP_GRAPH_READY" }, window.location.origin);
+		return () => window.removeEventListener("message", receiveRuleHighlights);
+	}, []);
 
 	const languages = useMemo(() => [...new Set(graph.files.map(file => file.language))].sort(), [graph.files]);
 	const filteredFiles = useMemo(() => graph.files.filter(file => {
@@ -176,6 +199,7 @@ export function ConformancePage() {
 	}
 
 	const byPath = new Map(nodes.map(node => [node.id, node]));
+	const ruleHighlightsByEdge = new Map(ruleEdgeHighlights.map(edge => [graphEdgeKey(edge.source, edge.target), edge]));
 	const packageNodes = nodes.filter(node => node.kind === "Package");
 	const packageEdges = [
 		...packageNodes.flatMap(node => {
@@ -193,12 +217,13 @@ export function ConformancePage() {
 				<header className="graph-topbar"><div className="graph-search"><span>⌕</span><input aria-label="Search components" placeholder="Search components..." value={search} onChange={event => setSearch(event.target.value)} /></div><div className="topbar-actions"><Link className="new-scan-button" to="/repository">+ New scan</Link><span className="topbar-status">● {status}</span><span className="avatar">◈</span></div></header>
 		<div className="graph-layout">
 			
-			<section className="graph-workspace"><div className="graph-toolbar"><div className="breadcrumbs"><Link className="graph-home-button" to="/">Home</Link><b>›</b><strong>Dependency Graphs</strong></div><div className="toolbar-controls"><div className="zoom-control"><button aria-label="Zoom out" onClick={() => setZoom(value => Math.max(.65, value - .1))}>−</button><button aria-label="Zoom in" onClick={() => setZoom(value => Math.min(1.5, value + .1))}>＋</button></div><select aria-label="Filter by language" value={language} onChange={event => setLanguage(event.target.value)}><option>All Languages</option>{languages.map(item => <option key={item}>{item}</option>)}</select><select aria-label="Filter by layer" value={layer} onChange={event => setLayer(event.target.value)}><option>All Layers</option><option>Packages</option><option>Files</option><option>Build</option></select><button className="export-button" onClick={exportGraph}>⇩ Export Graph</button><button className="scan-button" onClick={() => setScanOpen(value => !value)}>▶ Run Full Scan</button></div></div>
+			<section className="graph-workspace"><div className="graph-toolbar"><div className="breadcrumbs">{!embeddedGraph && <><Link className="graph-home-button" to="/">Home</Link><b>›</b></>}<strong>Dependency Graphs</strong></div><div className="toolbar-controls"><div className="zoom-control"><button aria-label="Zoom out" onClick={() => setZoom(value => Math.max(.65, value - .1))}>−</button><button aria-label="Zoom in" onClick={() => setZoom(value => Math.min(1.5, value + .1))}>＋</button></div><select aria-label="Filter by language" value={language} onChange={event => setLanguage(event.target.value)}><option>All Languages</option>{languages.map(item => <option key={item}>{item}</option>)}</select><select aria-label="Filter by layer" value={layer} onChange={event => setLayer(event.target.value)}><option>All Layers</option><option>Packages</option><option>Files</option><option>Build</option></select><button className="export-button" onClick={exportGraph}>⇩ Export Graph</button><button className="scan-button" onClick={() => setScanOpen(value => !value)}>▶ Run Full Scan</button></div></div>
 				{scanOpen && <form className="scan-form" onSubmit={importRepository}><input aria-label="Graph ID" placeholder="Graph ID" value={repositoryId} onChange={event => setRepositoryId(event.target.value)} required/><input aria-label="GitHub repository URL" placeholder="https://github.com/owner/repository" value={repositoryUrl} onChange={event => setRepositoryUrl(event.target.value)} required/><button disabled={loading}>{loading ? "Scanning..." : "Start scan"}</button></form>}
 				<div className="graph-metrics"><div><small>TOTAL NODES</small><strong>{nodes.length.toLocaleString()}</strong></div><div><small>TOTAL EDGES</small><strong>{totalEdges.toLocaleString()}</strong></div></div>
-				<div className="graph-content"><section className="dependency-canvas" aria-label="Dependency graph diagram"><svg viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} role="img" aria-label="Repository dependency graph" style={{ transform: `scale(${zoom})` }}><defs><marker id="edge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#66717b"/></marker></defs>
-					{graph.dependencies.map((edge, index) => { const source = byPath.get(`file:${edge.source}`); const target = byPath.get(`file:${edge.target}`); return source && target ? <line key={`${edge.source}-${edge.target}-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} className="graph-edge" markerEnd="url(#edge-arrow)"/> : null; })}
-					{packageEdges.map((edge, index) => { const source = byPath.get(edge.source); const target = byPath.get(edge.target); return source && target ? <line key={`contains-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} className="package-edge"/> : null; })}
+				<div className="graph-content"><section className="dependency-canvas" aria-label="Dependency graph diagram"><svg viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} role="img" aria-label="Repository dependency graph" style={{ transform: `scale(${zoom})` }}><defs><marker id="edge-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#66717b"/></marker><marker id="rule-arrow-violation" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#a13b35"/></marker><marker id="rule-arrow-satisfied" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#287442"/></marker></defs>
+					{graph.dependencies.map((edge, index) => { const source = byPath.get(`file:${edge.source}`); const target = byPath.get(`file:${edge.target}`); const highlight = ruleHighlightsByEdge.get(graphEdgeKey(edge.source, edge.target)); if (onlyRuleEdges && !highlight) return null; const marker = highlight ? `url(#rule-arrow-${highlight.tone})` : "url(#edge-arrow)"; return source && target ? <line key={`${edge.source}-${edge.target}-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} className={`graph-edge${highlight ? ` rule-${highlight.tone}` : ""}`} markerEnd={marker}/> : null; })}
+					{ruleEdgeHighlights.filter(edge => edge.synthetic).map((edge, index) => { const source = byPath.get(`file:${edge.source}`); const target = byPath.get(`file:${edge.target}`); const statusLabel = edge.missing ? "Missing required dependency" : "Forbidden dependency absent; rule passed"; return source && target ? <line key={`synthetic-rule-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} className={`graph-edge graph-edge-synthetic rule-${edge.tone}${edge.missing ? " graph-edge-missing" : ""}`} markerEnd={`url(#rule-arrow-${edge.tone})`}><title>{statusLabel}: {edge.source} to {edge.target}</title></line> : null; })}
+					{!onlyRuleEdges && packageEdges.map((edge, index) => { const source = byPath.get(edge.source); const target = byPath.get(edge.target); return source && target ? <line key={`contains-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} className="package-edge"/> : null; })}
 					{nodes.map(node => <g key={node.id} className={`graph-node ${node.kind === "Package" ? "package-node" : ""} ${selected?.id === node.id ? "selected" : ""}`} onClick={() => setSelectedPath(node.id)} role="button" tabIndex={0} onKeyDown={event => { if (event.key === "Enter") setSelectedPath(node.id); }}><title>{node.path}</title>{node.kind === "Package" ? <rect x={node.x - 25} y={node.y - 18} width="50" height="36" rx="8" stroke={colors.Package}/> : <circle cx={node.x} cy={node.y} r="16" stroke={colors[node.kind] ?? colors.Internal}/>}<text className="node-name" x={node.x} y={node.y - 28} textAnchor="middle">{node.kind === "Package" ? (node.path === "." ? "root package" : node.path.split("/").pop()) : node.path.split("/").pop()}</text><text className="node-language" x={node.x} y={node.y + 38} textAnchor="middle">{node.kind === "Package" ? `${node.members?.length ?? 0} files` : `${node.kind} · ${node.language}`}</text></g>)}
 					{!nodes.length && <text className="empty-graph" x={canvasWidth / 2} y={canvasHeight / 2} textAnchor="middle">Import a repository to explore its dependencies</text>}</svg>
 					<div className="node-legend"><strong>NODE TYPES</strong><div>{[...new Set(nodes.map(node => node.kind))].sort().map(kind => <span key={kind}><i style={{ background: colors[kind] ?? colors.Internal }}/>{kind}</span>)}</div></div>
