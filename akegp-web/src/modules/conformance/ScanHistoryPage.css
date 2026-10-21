@@ -16,7 +16,11 @@
 .scan-history-home { color: #a6b8a9; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
 .scan-history-home:hover { color: #6fda84; }
 .scan-history-content { margin: 0 auto; max-width: 1120px; padding: 78px clamp(24px, 7vw, 104px); }
+.conformance-section-tabs { border-bottom: 1px solid #304038; display: flex; gap: 28px; margin: 0 0 34px; }
+.conformance-section-tab { border-bottom: 2px solid transparent; color: #91a395; font-size: 14px; padding: 0 2px 13px; text-decoration: none; transition: color .18s ease, border-color .18s ease; }
+.conformance-section-tab:hover, .conformance-section-tab.active { border-color: #6fda84; color: #dce7dd; }
 .scan-history-heading { align-items: end; display: flex; justify-content: space-between; margin-bottom: 48px; gap: 24px; }
+.scan-history-heading-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
 .scan-history-kicker { color: #6fda84; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .18em; margin: 0 0 18px; }
 .scan-history-heading h1 { font-size: clamp(36px, 4.4vw, 58px); font-weight: 560; letter-spacing: -.05em; line-height: 1.05; margin: 0; }
 .scan-history-heading p:not(.scan-history-kicker) { color: #9caf9d; font-size: 14px; margin: 20px 0 0; }
@@ -57,6 +61,7 @@
 
 @media (max-width: 700px) {
   .scan-history-heading { align-items: start; flex-direction: column; }
+  .scan-history-heading-actions { align-items: stretch; flex-direction: column; width: 100%; }
   .scan-history-content { padding-bottom: 56px; padding-top: 54px; }
   .scan-history-new { width: 100%; }
   .scan-history-search { align-items: stretch; flex-direction: column; gap: 2px; margin: -24px 0 30px; padding-top: 12px; }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Project, projectsApi } from "../../shared/api/client";
 import "./ScanHistoryPage.css";
@@ -18,6 +18,7 @@ export function ScanHistoryPage() {
   const location = useLocation();
   const { projectId } = useParams();
   const selectedProjectId = projectId || (location.state as { projectId?: string } | null)?.projectId;
+  const conformancePath = selectedProjectId ? `/projects/${selectedProjectId}/conformance` : "/conformance";
   const [scans, setScans] = useState<Scan[]>([]);
   const [enforcementPRs, setEnforcementPRs] = useState<EnforcementPR[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -26,18 +27,37 @@ export function ScanHistoryPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    void Promise.all([
-      fetch("/api/conformance/graphs/history").then(async (response) => {
-        if (!response.ok) throw new Error("Previous scans could not be loaded.");
-        return response.json() as Promise<Scan[]>;
-      }),
-      projectsApi.list(),
-      fetch("/api/enforcement/prs").then(async (response) => response.ok ? response.json() as Promise<EnforcementPR[]> : [])
-        .catch(() => [] as EnforcementPR[]),
-    ])
-      .then(([loadedScans, loadedProjects, latestPRs]) => { setScans(loadedScans); setProjects(loadedProjects); setEnforcementPRs(latestPRs); })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "Previous scans could not be loaded."))
-      .finally(() => setLoading(false));
+    let active = true;
+    let refreshing = false;
+    const loadLatest = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const [scanResponse, prResponse] = await Promise.all([
+          fetch("/api/conformance/graphs/history"),
+          fetch("/api/enforcement/prs"),
+        ]);
+        if (!scanResponse.ok) throw new Error("Previous scans could not be loaded.");
+        const [latestScans, latestPRs] = await Promise.all([
+          scanResponse.json() as Promise<Scan[]>,
+          prResponse.ok ? prResponse.json() as Promise<EnforcementPR[]> : Promise.resolve([] as EnforcementPR[]),
+        ]);
+        if (active) { setScans(latestScans); setEnforcementPRs(latestPRs); setError(""); }
+      } catch (reason) {
+        if (active && loading) setError(reason instanceof Error ? reason.message : "Previous scans could not be loaded.");
+      } finally {
+        refreshing = false;
+        if (active) setLoading(false);
+      }
+    };
+
+    void projectsApi.list().then((loadedProjects) => { if (active) setProjects(loadedProjects); })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Projects could not be loaded."); });
+    void loadLatest();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void loadLatest(); }, 10000);
+    const onFocus = () => { if (document.visibilityState === "visible") void loadLatest(); };
+    window.addEventListener("focus", onFocus);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
   }, []);
 
   const skippedPRs = new Set(enforcementPRs
@@ -103,10 +123,16 @@ export function ScanHistoryPage() {
   return <main className="scan-history-page">
     <header className="scan-history-topbar"><Link to="/" className="home-brand"><span>✣</span><b>AKEGP</b></Link><Link to={selectedProjectId ? `/projects/${selectedProjectId}` : "/"} className="scan-history-home">← {selectedProjectId ? "Project workspace" : "Home"}</Link></header>
     <section className="scan-history-content">
+      <nav className="conformance-section-tabs" aria-label="Conformance sections">
+        <Link className="conformance-section-tab active" to={conformancePath}>Scan history</Link>
+        <Link className="conformance-section-tab" to={`${conformancePath}/violations`}>Violations</Link>
+      </nav>
       <div className="scan-history-heading">
         <div><p className="scan-history-kicker">CONFORMANCE / HISTORY</p><h1>{selectedProjectId ? "Project scan history" : "Your project scans"}</h1>
           <p>{selectedProjectId ? "See the latest code checks and explore how this project is connected. Documentation-only and configuration-only PRs are hidden." : "Recent code checks are shown first. Documentation-only and configuration-only PRs are hidden."}</p></div>
-        <button type="button" className="scan-history-new" onClick={() => navigate("/repository", { state: selectedProjectId ? { ...location.state } : undefined })}>Start a scan</button>
+        <div className="scan-history-heading-actions">
+          <button type="button" className="scan-history-new" onClick={() => navigate("/repository", { state: selectedProjectId ? { ...location.state } : undefined })}>Start a scan</button>
+        </div>
       </div>
       <label className="scan-history-search"><span>Search project scans</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Project, repository, or PR number"/><span className="scan-history-search-icon" aria-hidden="true">⌕</span></label>
       {error && <p className="scan-history-error" role="alert">{error}</p>}

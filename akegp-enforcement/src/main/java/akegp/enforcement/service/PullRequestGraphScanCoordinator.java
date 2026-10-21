@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Scheduled;
 
 /** Builds graph snapshots from PR commits stored in enforcement. Graph failures never change enforcement decisions. */
 @Component
@@ -27,6 +28,12 @@ public class PullRequestGraphScanCoordinator {
 
   @EventListener(ApplicationReadyEvent.class)
   public void scanExistingPullRequests() {
+    repository.latestPerPr().forEach(this::scan);
+  }
+
+  /** Picks up enforcement records written directly to the database while the app is running. */
+  @Scheduled(fixedDelayString = "${akegp.enforcement.pr-graph-refresh-ms:30000}", initialDelayString = "${akegp.enforcement.pr-graph-refresh-ms:30000}")
+  public void refreshPullRequestGraphs() {
     repository.latestPerPr().forEach(this::scan);
   }
 
