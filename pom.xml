@@ -13,6 +13,7 @@
     <module>akegp-conformance</module>
     <module>akegp-enforcement</module>
     <module>akegp-analytics</module>
+    <module>akegp-users</module>
     <module>akegp-app</module>
   </modules>
   <properties>

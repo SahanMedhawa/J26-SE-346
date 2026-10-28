@@ -6,6 +6,7 @@ COPY akegp-rules akegp-rules
 COPY akegp-conformance akegp-conformance
 COPY akegp-enforcement akegp-enforcement
 COPY akegp-analytics akegp-analytics
+COPY akegp-users akegp-users
 COPY akegp-app akegp-app
 RUN --mount=type=cache,target=/root/.m2 mvn -B -pl akegp-app -am package -DskipTests
 
