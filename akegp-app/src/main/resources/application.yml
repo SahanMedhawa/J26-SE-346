@@ -7,9 +7,9 @@ spring:
   application:
     name: akegp
   datasource:
-    url: ${AKEGP_DB_URL:jdbc:postgresql://localhost:5432/akegp}
-    username: ${AKEGP_DB_USER:akegp}
-    password: ${AKEGP_DB_PASSWORD:akegp}
+    url: ${AKEGP_DB_URL}
+    username: ${AKEGP_DB_USER}
+    password: ${AKEGP_DB_PASSWORD}
   flyway:
     enabled: false
 akegp:
@@ -27,15 +27,30 @@ akegp:
     uri: ${NEO4J_URI}
     username: ${NEO4J_USER}
     password: ${NEO4J_PASSWORD}
-  mongodb:
-    uri: ${MONGODB_URI:mongodb://localhost:27017/akegp}
   datasources:
     rules:
       url: ${AKEGP_RULES_DB_URL}
       username: ${AKEGP_RULES_DB_USER}
       password: ${AKEGP_RULES_DB_PASSWORD}
+    users:
+      url: ${AKEGP_USERS_DB_URL:${AKEGP_RULES_DB_URL}}
+      username: ${AKEGP_USERS_DB_USER:${AKEGP_RULES_DB_USER}}
+      password: ${AKEGP_USERS_DB_PASSWORD:${AKEGP_RULES_DB_PASSWORD}}
     analytics:
       url: ${AKEGP_ANALYTICS_DB_URL:}
       username: ${AKEGP_ANALYTICS_DB_USER:}
       password: ${AKEGP_ANALYTICS_DB_PASSWORD:}
 
+  jwt:
+    secret: ${AKEGP_JWT_SECRET}
+    expiration-ms: 86400000
+  auth:
+    frontend-url: ${AKEGP_FRONTEND_URL:http://localhost:5173}
+    secure-cookie: ${AKEGP_SECURE_COOKIE:true}
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${AKEGP_SECURE_COOKIE:true}
