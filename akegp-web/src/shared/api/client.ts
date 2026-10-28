@@ -195,9 +195,10 @@ export class ApiClientError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...options,
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
   const body = await response.json().catch(() => null);
@@ -215,7 +216,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const projectsApi = {
   list: async () => (await request<Project[] | null>("/api/rules/projects")) ?? [],
   get: (id: string) => request<Project>(`/api/rules/projects/${id}`),
-  create: (input: ProjectInput) => request<Project>("/api/rules/projects", {
+  create: (input: ProjectInput) => request<Project>(`/api/workspaces/${encodeURIComponent(localStorage.getItem("akegp.workspace") ?? "")}/projects`, {
     method: "POST",
     body: JSON.stringify(input),
   }),
